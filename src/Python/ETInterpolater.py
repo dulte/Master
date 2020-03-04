@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import h5py
 import subprocess
+import time
 
 from warnings import simplefilter
 # ignore all future warnings
@@ -240,8 +241,8 @@ class ETInterpolater:
         #np.savetxt(file, np.array(values))
 
 
-    def LORENE_read(self, filename, origin=[0,0,0]):
-        p = subprocess.Popen("../C/get_points %s %s %s 1 %s" %(origin[0], origin[1], origin[2], filename), stdout=subprocess.PIPE, shell=True)
+    def LORENE_read(self, filename, origin=[0,0,0], body=1, it=0):
+        p = subprocess.Popen("../C/get_points %s %s %s 1 %s %s" %(origin[0], origin[1], origin[2], body, it), stdout=subprocess.PIPE, shell=True)
         #p = subprocess.Popen("./get_points %s %s %s 1" %(origin[0], origin[1], origin[2]), stdout=subprocess.PIPE, shell=True)
         (output, err) = p.communicate()
         p_status = p.wait()
@@ -252,8 +253,8 @@ class ETInterpolater:
 
 
 
-    def get_coll_points(self, origin=[0,0,0]):
-        p = subprocess.Popen("../C/get_points %s %s %s 0 none.txt" %(origin[0], origin[1], origin[2]), stdout=subprocess.PIPE, shell=True)
+    def get_coll_points(self, origin=[0,0,0], body=1, it=0):
+        p = subprocess.Popen("../C/get_points %s %s %s 0 %s %s" %(origin[0], origin[1], origin[2], body, it), stdout=subprocess.PIPE, shell=True)
         (output, err) = p.communicate()
         p_status = p.wait()
         if p_status != 0:
@@ -372,6 +373,10 @@ class ETInterpolater:
     def analyse_bbh(self, geometry, quantity, iterations, test=False):
         possible_iterations, positions, radii = self.read_bbh_diag()
 
+        quantites = ["alp", "betax", "betay", "betaz",
+                "gxx", "gxy", "gxz", "gyy", "gyz", "gzz",
+                "kxx", "kxy", "kxz", "kyy", "kyz", "kzz"]
+        start_time = time.time()
         for it in iterations:
             it_index = np.where(possible_iterations == it)
 
@@ -385,28 +390,33 @@ class ETInterpolater:
 
             if test:
                 self.make_test_bbh_plot(quantity, pos1, pos2, radius1, radius2)
+            for quantity in quantites:
+                print "[~] Starting with Quantity %s \n \n" %quantity
+                q = self.read_ET_quantity(quantity, g, it, dimentions=3, order=4)
 
-            q = self.read_ET_quantity(quantity, g, it, dimentions=3, order=4)
+                print "[+] Quantity Successfully Read from ET File"
+                #BH1
+                print "[~] Starting with Black Hole 1"
 
-            #BH1
-            print "[~] Starting with Black Hole 1"
-
-            values, flatten_values = self.get_values_at_coll_points(q,smooth=True, bh_pos=pos1, bh_rad=radius1,bh_pos2=pos2, bh_rad2=radius2)
-            filename = "../Python/%s_%s_body1.txt" %(quantity, it)
-            self.write_flatten_values_to_file(flatten_values, it, 1, filename)
-            self.LORENE_read(filename)
-
-
-            #BH2
-            print "[~] Now Black Hole 2"
-
-            values, flatten_values = self.get_values_at_coll_points(q,smooth=True, bh_pos=pos2, bh_rad=radius2,bh_pos2=pos1, bh_rad2=radius1)
-            filename = "../Python/%s_%s_body2.txt" %(quantity, it)
-            self.write_flatten_values_to_file(flatten_values, it, 2, filename)
-            self.LORENE_read(filename)
+                values, flatten_values = self.get_values_at_coll_points(q,smooth=True, bh_pos=pos1, bh_rad=radius1,bh_pos2=pos2, bh_rad2=radius2)
+                filename = "../Python/%s_%s_body1.txt" %(quantity, it)
+                self.write_flatten_values_to_file(flatten_values, it, 1, filename)
 
 
-            print "[+] Done!"
+                #BH2
+                print "[~] Now Black Hole 2"
+
+                values, flatten_values = self.get_values_at_coll_points(q,smooth=True, bh_pos=pos2, bh_rad=radius2,bh_pos2=pos1, bh_rad2=radius1)
+                filename = "../Python/%s_%s_body2.txt" %(quantity, it)
+                self.write_flatten_values_to_file(flatten_values, it, 2, filename)
+
+                print "\n"
+
+            self.LORENE_read(filename, body=1, origin=pos1, it=it)
+            self.LORENE_read(filename, body=2, origin=pos2, it=it)
+
+
+        print "[+] Done in %.3f min!" %((time.time()- start_time)/60.)
 
 
 
@@ -426,7 +436,7 @@ if __name__=="__main__":
     g = inter.make_geometry([-40, -40, -40], 200)
     it = 0
 
-    inter.analyse_bbh(g, quantity, [it], test=True)
+    inter.analyse_bbh(g, quantity, [it], test=False)
 
     #q = inter.read_ET_quantity(quantity, g, it, dimentions=3, order=4)
 

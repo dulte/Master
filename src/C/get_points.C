@@ -27,11 +27,12 @@ TODO:
 using namespace Lorene ;
 double * get_flatten_values(int size, char*);
 double readdata(double *values, int l, int k, int j, int i, int nz, int nr, int nt, int np);
+double *read_from_file(int size, char* name, int body, int it);
 
 int main(int argc, char **argv) {
 
     if(argc < 6){
-        cout << "Usage: program x_origin y_origin z_origin 0 (write to screen)/1 (read values from file) filename" << endl;
+        cout << "Usage: program x_origin y_origin z_origin 0 (write to screen)/1 (read values from file) body iteration" << endl;
         exit(1);
     }
 
@@ -79,7 +80,7 @@ int main(int argc, char **argv) {
     int read_write;
     sscanf(argv[4], "%d", &read_write);
 
-    char* filename = argv[5];
+
     //sscanf(argv[5], "%s", filename);
 
     if(read_write == 0){
@@ -92,18 +93,63 @@ int main(int argc, char **argv) {
         cout << "+" << endl;
         cout << z << endl;
     }else if(read_write == 1){
-        double *value_array = get_flatten_values(3 + nz*nr*nt*np, filename);
-        cout << readdata(value_array, 0, 1, 3, 4, nz, nr, nt, np) << endl;
+        int body;
+        sscanf(argv[5], "%d", &body);
 
-        //Lapse
+        int it;
+        sscanf(argv[6], "%d", &it);
+
+        /* This is horrble practis, and I should have made just one file.
+        To be fixed...
+        */
+
+        // Lapse
+        double *value_alp = read_from_file(3 + nz*nr*nt*np, "alp", body, it);
+
+        // Shift
+        double *value_betax = read_from_file(3 + nz*nr*nt*np, "betax", body, it);
+        double *value_betay = read_from_file(3 + nz*nr*nt*np, "betay", body, it);
+        double *value_betaz = read_from_file(3 + nz*nr*nt*np, "betaz", body, it);
+
+        // Metric
+        double *value_gxx = read_from_file(3 + nz*nr*nt*np, "gxx", body, it);
+        double *value_gxy = read_from_file(3 + nz*nr*nt*np, "gxy", body, it);
+        double *value_gxz = read_from_file(3 + nz*nr*nt*np, "gxz", body, it);
+
+        double *value_gyy = read_from_file(3 + nz*nr*nt*np, "gyy", body, it);
+        double *value_gyz = read_from_file(3 + nz*nr*nt*np, "gyz", body, it);
+        double *value_gzz = read_from_file(3 + nz*nr*nt*np, "gzz", body, it);
+
+        // Curvature
+        double *value_kxx = read_from_file(3 + nz*nr*nt*np, "kxx", body, it);
+        double *value_kxy = read_from_file(3 + nz*nr*nt*np, "kxy", body, it);
+        double *value_kxz = read_from_file(3 + nz*nr*nt*np, "kxz", body, it);
+
+        double *value_kyy = read_from_file(3 + nz*nr*nt*np, "kyy", body, it);
+        double *value_kyz = read_from_file(3 + nz*nr*nt*np, "kyz", body, it);
+        double *value_kzz = read_from_file(3 + nz*nr*nt*np, "kzz", body, it);
+
+
+
+
+
+        // Lapse
         Scalar N(map) ;
         N.allocate_all() ;
+
+        // Shift
+
+        // Metric
+
+        // Curavture
+
+
 
         for(int l=0;l<nz;l++){
             for(int k=0;k<np;k++){
                 for(int j=0;j<nt;j++){
                     for(int i=0;i<nr;i++){
-                        double Ndata = readdata(value_array, l, k, j, i, nz, nr, nt, np);
+                        double Ndata = readdata(value_alp, l, k, j, i, nz, nr, nt, np);
                         N.set_grid_point(l, k, j, i) = Ndata;
                     }
                 }
@@ -176,5 +222,12 @@ double *get_flatten_values(int size, char* filename){
 
     return values;
 
+}
 
+double *read_from_file(int size, char* name, int body, int it){
+    char file[20];
+    sprintf(file, "%s_%d_body%d.txt", name, body,it);
+    double *value = get_flatten_values(size, file);
+
+    return value;
 }
