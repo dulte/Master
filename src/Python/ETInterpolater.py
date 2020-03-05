@@ -378,6 +378,8 @@ class ETInterpolater:
                 "kxx", "kxy", "kxz", "kyy", "kyz", "kzz"]
         start_time = time.time()
         for it in iterations:
+            print "[~] Starting with Iteration %s \n" %it
+
             it_index = np.where(possible_iterations == it)
 
             if len(it_index) == 0:
@@ -391,7 +393,7 @@ class ETInterpolater:
             if test:
                 self.make_test_bbh_plot(quantity, pos1, pos2, radius1, radius2)
             for quantity in quantites:
-                print "[~] Starting with Quantity %s \n \n" %quantity
+                print "[~] Starting with Quantity %s" %quantity
                 q = self.read_ET_quantity(quantity, g, it, dimentions=3, order=4)
 
                 print "[+] Quantity Successfully Read from ET File"
@@ -410,10 +412,16 @@ class ETInterpolater:
                 filename = "../Python/%s_%s_body2.txt" %(quantity, it)
                 self.write_flatten_values_to_file(flatten_values, it, 2, filename)
 
-                print "\n"
+                print "\n INFO: Time used: %.3f min.\n\n" %((time.time()- start_time)/60.)
 
+
+            print "[~] LORENE is Writing BH1 to GYOTO File"
             self.LORENE_read(filename, body=1, origin=pos1, it=it)
+
+            print "[~] LORENE is Writing BH1 to GYOTO File"
             self.LORENE_read(filename, body=2, origin=pos2, it=it)
+
+            print "[+] Done with Iteration %s in %.3f min. \n" %(it, (time.time()- start_time)/60.)
 
 
         print "[+] Done in %.3f min!" %((time.time()- start_time)/60.)

@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
         int it;
         sscanf(argv[6], "%d", &it);
 
-        /* This is horrble practis, and I should have made just one file.
+        /* This is horrble practice, and I should have made just one file.
         To be fixed...
         */
 
@@ -130,20 +130,28 @@ int main(int argc, char **argv) {
         double *value_kzz = read_from_file(3 + nz*nr*nt*np, "kzz", body, it);
 
 
+        printf("%s\n", "[+] Files Successfully Read");
 
-
+        //Allocation of quantities:
 
         // Lapse
         Scalar N(map) ;
         N.allocate_all() ;
 
         // Shift
+        Vector beta(map,CON,map.get_bvect_cart());
+        beta.allocate_all();
 
         // Metric
+        Sym_tensor gamma(map,COV,map.get_bvect_cart());
+        gamma.allocate_all();
 
         // Curavture
+        Sym_tensor curvature(map,COV,map.get_bvect_cart());
+        curvature.allocate_all();
 
-
+        printf("%s\n", "[+] Quantities Successfully Allocated");
+        // Assignes values from the read files
 
         for(int l=0;l<nz;l++){
             for(int k=0;k<np;k++){
@@ -151,21 +159,110 @@ int main(int argc, char **argv) {
                     for(int i=0;i<nr;i++){
                         double Ndata = readdata(value_alp, l, k, j, i, nz, nr, nt, np);
                         N.set_grid_point(l, k, j, i) = Ndata;
+                        beta.set(1).set_grid_point(l, k, j, i) = readdata(value_betax, l, k, j, i, nz, nr, nt, np);
+                        beta.set(2).set_grid_point(l, k, j, i) = readdata(value_betay, l, k, j, i, nz, nr, nt, np);
+                        beta.set(3).set_grid_point(l, k, j, i) = readdata(value_betaz, l, k, j, i, nz, nr, nt, np);
+
+                        gamma.set(1,1).set_grid_point(l, k, j, i) = readdata(value_gxx, l, k, j, i, nz, nr, nt, np);
+                        gamma.set(1,2).set_grid_point(l, k, j, i) = readdata(value_gxy, l, k, j, i, nz, nr, nt, np);
+                        gamma.set(1,3).set_grid_point(l, k, j, i) = readdata(value_gxz, l, k, j, i, nz, nr, nt, np);
+
+                        gamma.set(2,2).set_grid_point(l, k, j, i) = readdata(value_gyy, l, k, j, i, nz, nr, nt, np);
+                        gamma.set(2,3).set_grid_point(l, k, j, i) = readdata(value_gyz, l, k, j, i, nz, nr, nt, np);
+                        gamma.set(3,3).set_grid_point(l, k, j, i) = readdata(value_gzz, l, k, j, i, nz, nr, nt, np);
+
+                        gamma.set(2,1).set_grid_point(l, k, j, i) = readdata(value_gxy, l, k, j, i, nz, nr, nt, np);
+                        gamma.set(3,1).set_grid_point(l, k, j, i) = readdata(value_gxz, l, k, j, i, nz, nr, nt, np);
+                        gamma.set(3,2).set_grid_point(l, k, j, i) = readdata(value_gyz, l, k, j, i, nz, nr, nt, np);
+
+
+                        curvature.set(1,1).set_grid_point(l, k, j, i) = readdata(value_kxx, l, k, j, i, nz, nr, nt, np);
+                        curvature.set(1,2).set_grid_point(l, k, j, i) = readdata(value_kxy, l, k, j, i, nz, nr, nt, np);
+                        curvature.set(1,3).set_grid_point(l, k, j, i) = readdata(value_kxz, l, k, j, i, nz, nr, nt, np);
+
+                        curvature.set(2,2).set_grid_point(l, k, j, i) = readdata(value_kyy, l, k, j, i, nz, nr, nt, np);
+                        curvature.set(2,3).set_grid_point(l, k, j, i) = readdata(value_kyz, l, k, j, i, nz, nr, nt, np);
+                        curvature.set(3,3).set_grid_point(l, k, j, i) = readdata(value_kzz, l, k, j, i, nz, nr, nt, np);
+
+                        curvature.set(2,1).set_grid_point(l, k, j, i) = readdata(value_kxy, l, k, j, i, nz, nr, nt, np);
+                        curvature.set(3,1).set_grid_point(l, k, j, i) = readdata(value_kxz, l, k, j, i, nz, nr, nt, np);
+                        curvature.set(3,2).set_grid_point(l, k, j, i) = readdata(value_kyz, l, k, j, i, nz, nr, nt, np);
+
                     }
                 }
             }
-    	}
+    	  }
+
+        printf("%s\n", "[+] Quantities Successfully Filled");
+
+
+
+        // Makes the inverse metric from the metric (by making it contravariant)
+        /*This might be the wrong way of doing it...
+          Check if I don't mix up the metric and inverse metric... */
+
+        //Sym_tensor inv_gamma(map,COV,map.get_bvect_cart());
+        //inv_gamma.allocate_all();
+        //inv_gamma = Metric(gamma).con();
+
+
+
+
+
+        // Converts to spectral bases
         N.std_spectral_base();
-        cout << "hello" << endl;
-        double rmax=4;
+        beta.std_spectral_base();
+        gamma.std_spectral_base();
+        curvature.std_spectral_base();
+        //inv_gamma.std_spectral_base();
+
+
+        printf("%s\n", "[+] Quantities Successfully Made to Spectral Bases");
+
+
+
+        // Converts from cartesian to spherical
+        cout << map.get_bvect_spher() << endl;
+        beta.change_triad(map.get_bvect_spher());
+        gamma.change_triad(map.get_bvect_spher());
+        curvature.change_triad(map.get_bvect_spher());
+        //inv_gamma.change_triad(map.get_bvect_spher());
+
+        printf("%s\n", "[+] Quantities Successfully Converted");
+
+
+
+        // Plotting for testing
+
+        //double rmax=4;
         //des_meridian(N, 0, rmax, "N", 1) ;
-
-
-
         //des_coupe_z(N, 0., 2, "Lapse") ;
-
-
         //arrete() ;
+
+
+        // Saves to Gyoto Readable File
+        /*Make correct file name... */
+
+        char out_name[20];
+        sprintf(out_name, "bbh_%d_body%d.d",it, body);
+
+
+        FILE* file_out = fopen(out_name, "w") ;
+        double total_time = 0. ; // for compatibility
+
+        fwrite_be(&total_time, sizeof(double), 1, file_out) ;
+        mgrid.sauve(file_out) ;
+        map.sauve(file_out) ;
+        N.sauve(file_out) ;
+        beta.sauve(file_out) ;
+        gamma.sauve(file_out) ;
+        //inv_gamma.sauve(file_out) ;
+        Metric(gamma).con().sauve(file_out);
+        curvature.sauve(file_out) ;
+
+        fclose(file_out) ;
+
+        printf("%s\n", "[+] Quantities Successfully Written to File");
 
         cout << "[+] Successfully Read From File and Saved Quantity" << endl;
     }
@@ -226,7 +323,8 @@ double *get_flatten_values(int size, char* filename){
 
 double *read_from_file(int size, char* name, int body, int it){
     char file[20];
-    sprintf(file, "%s_%d_body%d.txt", name, body,it);
+
+    sprintf(file, "%s_%d_body%d.txt", name, it, body);
     double *value = get_flatten_values(size, file);
 
     return value;
