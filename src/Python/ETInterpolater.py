@@ -24,6 +24,8 @@ TODO:
 - Make sure boudaries are handled correctly! [-]
     - PostCactus cannot extrapolate outside the ET grid.
       So this grid must be larger than highest coll point
+
+- Is the number of coll points hard coded?
 """
 
 
@@ -101,7 +103,7 @@ class ETInterpolater:
         for i in range(n):
             for j in range(n):
                 q_inter[j,i] = q(np.array([self.desymmetrize_coord(x[i]), self.desymmetrize_coord(y[j])]))
-                q_inter[j,i] *= self.super_gaussian(x[i], y[j], 0, p1, r1)*self.super_gaussian(x[i], y[j], 0, p2, r2)
+                q_inter[j,i] *= self.super_gaussian(self.desymmetrize_coord(x[i]), self.desymmetrize_coord(y[j]), 0, p1, r1)*self.super_gaussian(x[i], y[j], 0, p2, r2)
 
 
         xx = p1[0] + r1*np.cos(th)
@@ -119,10 +121,15 @@ class ETInterpolater:
         plt.colorbar()
         plt.show()
 
+        plt.contour(x,y,q_inter)
+        plt.show()
+
 
     def get_values_at_coll_points(self, interpolated_quantity,smooth=False, bh_pos=[0,0,0], bh_rad=0,bh_pos2=[0,0,0], bh_rad2=0, test=False):
         q = interpolated_quantity
+
         xx, yy, zz = self.get_coll_points(bh_pos)
+
 
 
         r_test = []
@@ -156,7 +163,6 @@ class ETInterpolater:
                             inter_q *= self.super_gaussian(x,y,z, bh_pos2, bh_rad2)
 
                         values[index][k][j][r] = inter_q
-
                         if test:
 
                             r_test.append(np.sqrt(x**2 + y**2 + z**2))
@@ -196,7 +202,7 @@ class ETInterpolater:
             elif tp == "z":
                 coord = self.zlim[1] + 5
 
-        return coord#self.desymmetrize_coord(coord)
+        return self.desymmetrize_coord(coord)
 
     def desymmetrize_coord(self, coord):
         return abs(coord)
@@ -262,6 +268,8 @@ class ETInterpolater:
         else:
             print "[+] LORENE Successfully Gave the Coll Points"
 
+        with open("printout.txt","w") as f:
+            f.write(output)
         #print output
         x_dicts, y_dicts, z_dicts = self.clean_coll_points_xyz(output)
         return x_dicts, y_dicts, z_dicts
@@ -278,11 +286,11 @@ class ETInterpolater:
         corrds = []
         index = 0
         for index, sub_s in enumerate(s):
-                if sub_s == "+":
+                if sub_s == "+" and s[index+1] == "\n":
                     break
         s = s[index+1:]
         for index, sub_s in enumerate(s):
-                if sub_s == "+":
+                if sub_s == "+" and s[index+1] == "\n":
                     break
 
 
@@ -290,14 +298,15 @@ class ETInterpolater:
         s = s[index+1:]
 
         for index, sub_s in enumerate(s):
-                if sub_s == "+":
+                if sub_s == "+" and s[index+1] == "\n":
                     break
+
 
         y_dicts = self.clean_coll_points(s[:index])
         s = s[index+1:]
 
         for index, sub_s in enumerate(s):
-                if sub_s == "+":
+                if sub_s == "+" and s[index+1] == "\n":
                     break
 
         z_dicts = self.clean_coll_points(s[:index])
@@ -371,27 +380,45 @@ class ETInterpolater:
 
 
     def analyse_bbh(self, geometry, quantity, iterations, test=False):
-        possible_iterations, positions, radii = self.read_bbh_diag()
+
+        if self.nb_bodies > 1:
+            possible_iterations, positions, radii = self.read_bbh_diag()
 
         quantites = ["alp", "betax", "betay", "betaz",
                 "gxx", "gxy", "gxz", "gyy", "gyz", "gzz",
                 "kxx", "kxy", "kxz", "kyy", "kyz", "kzz"]
+
+
+        smooth = False if self.nb_bodies == 1 else True
         start_time = time.time()
         for it in iterations:
             print "[~] Starting with Iteration %s \n" %it
 
-            it_index = np.where(possible_iterations == it)
 
-            if len(it_index) == 0:
-                continue
+            if self.nb_bodies > 1:
+                it_index = np.where(possible_iterations == it)
 
-            pos1 = (positions[0,:,it_index])[0,0,:]
-            pos2 = (positions[1,:,it_index])[0,0,:]
-            radius1 = (radii[0,it_index])[0,0]
-            radius2 = (radii[1,it_index])[0,0]
+                if len(it_index) == 0:
+                    continue
+
+                pos1 = (positions[0,:,it_index])[0,0,:]
+                pos2 = (positions[1,:,it_index])[0,0,:]
+                radius1 = (radii[0,it_index])[0,0]
+                radius2 = (radii[1,it_index])[0,0]
+            else:
+                pos1 = [0,0,0]
+                pos2 = [0,0,0]
+
+                radius1 = 0
+                radius2 = 0
 
             if test:
-                self.make_test_bbh_plot(quantity, pos1, pos2, radius1, radius2)
+                if self.nb_bodies == 1:
+                    self.make_test_plot("alp")
+                elif self.nb_bodies == 2:
+                    self.make_test_bbh_plot("gxx", pos1, pos2, radius1, radius2)
+
+
             for quantity in quantites:
                 print "[~] Starting with Quantity %s" %quantity
                 q = self.read_ET_quantity(quantity, g, it, dimentions=3, order=4)
@@ -400,17 +427,26 @@ class ETInterpolater:
                 #BH1
                 print "[~] Starting with Black Hole 1"
 
-                values, flatten_values = self.get_values_at_coll_points(q,smooth=True, bh_pos=pos1, bh_rad=radius1,bh_pos2=pos2, bh_rad2=radius2)
+                """
+                if quantity in ["alp", "betax", "betay", "betaz"]:
+                    smooth = False
+                else:
+                    smooth = True
+                """
+                smooth=False
+
+                values, flatten_values = self.get_values_at_coll_points(q,smooth=smooth, bh_pos=pos1, bh_rad=radius1,bh_pos2=pos2, bh_rad2=radius2)
                 filename = "../Python/%s_%s_body1.txt" %(quantity, it)
                 self.write_flatten_values_to_file(flatten_values, it, 1, filename)
 
 
                 #BH2
-                print "[~] Now Black Hole 2"
+                if self.nb_bodies > 1:
+                    print "[~] Now Black Hole 2"
 
-                values, flatten_values = self.get_values_at_coll_points(q,smooth=True, bh_pos=pos2, bh_rad=radius2,bh_pos2=pos1, bh_rad2=radius1)
-                filename = "../Python/%s_%s_body2.txt" %(quantity, it)
-                self.write_flatten_values_to_file(flatten_values, it, 2, filename)
+                    values, flatten_values = self.get_values_at_coll_points(q,smooth=True, bh_pos=pos2, bh_rad=radius2,bh_pos2=pos1, bh_rad2=radius1)
+                    filename = "../Python/%s_%s_body2.txt" %(quantity, it)
+                    self.write_flatten_values_to_file(flatten_values, it, 2, filename)
 
                 print "\n INFO: Time used: %.3f min.\n\n" %((time.time()- start_time)/60.)
 
@@ -418,8 +454,9 @@ class ETInterpolater:
             print "[~] LORENE is Writing BH1 to GYOTO File"
             self.LORENE_read(filename, body=1, origin=pos1, it=it)
 
-            print "[~] LORENE is Writing BH1 to GYOTO File"
-            self.LORENE_read(filename, body=2, origin=pos2, it=it)
+            if self.nb_bodies > 1:
+                print "[~] LORENE is Writing BH1 to GYOTO File"
+                self.LORENE_read(filename, body=2, origin=pos2, it=it)
 
             print "[+] Done with Iteration %s in %.3f min. \n" %(it, (time.time()- start_time)/60.)
 
@@ -440,11 +477,11 @@ if __name__=="__main__":
 
     quantity = "kxx"
     filename = "%s.txt" %quantity
-    inter = ETInterpolater(folder)
-    g = inter.make_geometry([-40, -40, -40], 200)
+    inter = ETInterpolater(folder, 2)
+    g = inter.make_geometry([-50, -50, -50], 400)
     it = 0
 
-    inter.analyse_bbh(g, quantity, [it], test=False)
+    inter.analyse_bbh(g, quantity, [it], test=True)
 
     #q = inter.read_ET_quantity(quantity, g, it, dimentions=3, order=4)
 
