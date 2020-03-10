@@ -163,6 +163,9 @@ class ETInterpolater:
                             inter_q *= self.super_gaussian(x,y,z, bh_pos2, bh_rad2)
 
                         values[index][k][j][r] = inter_q
+
+                        if inter_q != inter_q:
+                            print index, k, j, r, inter_q
                         if test:
 
                             r_test.append(np.sqrt(x**2 + y**2 + z**2))
@@ -416,7 +419,8 @@ class ETInterpolater:
                 if self.nb_bodies == 1:
                     self.make_test_plot("alp")
                 elif self.nb_bodies == 2:
-                    self.make_test_bbh_plot("gxx", pos1, pos2, radius1, radius2)
+                    self.make_test_bbh_plot("kxx", pos1, pos2, radius1, radius2)
+                    
 
 
             for quantity in quantites:
