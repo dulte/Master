@@ -65,6 +65,18 @@ class ETInterpolater:
         print "[+] Geomentry Successfully Made"
         return geo
 
+    def make_positive_geometry(self, corner, n_pts):
+        corner1 = [abs(i) for i in corner]
+        self.xlim = [0, abs(corner[0])]
+        self.ylim = [0, abs(corner[1])]
+
+        if len(corner) == 3:
+            self.zlim = [0, abs(corner[2])]
+
+        geo = gd.RegGeom([n_pts]*len(corner), [0]*len(corner), x1=corner1)
+        print "[+] Positive Geomentry Successfully Made"
+        return geo
+
 
 
     def make_test_plot(self, quantity):
@@ -88,7 +100,8 @@ class ETInterpolater:
 
 
     def make_test_bbh_plot(self, quantity, p1, p2, r1, r2):
-        g = self.make_geometry([-50,-50], 400)
+        #g = self.make_geometry([-50,-50], 400)
+        g = self.make_positive_geometry([50,50], 400)
         q = self.read_ET_quantity(quantity, g, 0, dimentions=2)
 
         n = 600
@@ -99,11 +112,13 @@ class ETInterpolater:
 
         th = np.linspace(0,2*np.pi,100)
 
+        scaling_factor = 4.0
+        bbh_distance = np.linalg.norm(p1-p2)
 
         for i in range(n):
             for j in range(n):
                 q_inter[j,i] = q(np.array([self.desymmetrize_coord(x[i]), self.desymmetrize_coord(y[j])]))
-                q_inter[j,i] *= self.super_gaussian(self.desymmetrize_coord(x[i]), self.desymmetrize_coord(y[j]), 0, p1, r1)*self.super_gaussian(x[i], y[j], 0, p2, r2)
+                #q_inter[j,i] *= self.split_function(x[i], y[j], 0, p1, p2, bbh_distance/scaling_factor, bbh_distance/scaling_factor)
 
 
         xx = p1[0] + r1*np.cos(th)
@@ -125,11 +140,12 @@ class ETInterpolater:
         plt.show()
 
 
-    def get_values_at_coll_points(self, interpolated_quantity,smooth=False, bh_pos=[0,0,0], bh_rad=0,bh_pos2=[0,0,0], bh_rad2=0, test=False):
+    def get_values_at_coll_points(self, interpolated_quantity,smooth=True, bh_pos=[0,0,0], bh_rad=0,bh_pos2=[0,0,0], bh_rad2=0, scaling_factor=4.0, test=False):
         q = interpolated_quantity
 
         xx, yy, zz = self.get_coll_points(bh_pos)
 
+        bbh_distance = np.linalg.norm(bh_pos-bh_pos2)
 
 
         r_test = []
@@ -151,16 +167,18 @@ class ETInterpolater:
             for k in range(len(domain.keys())):
                 for j in range(len(domain[k].keys())):
                     for r in range(len(domain[k][j])):
-                        x = self.bound_coord(xx[index][k][j][r], "x")
-                        y = self.bound_coord(yy[index][k][j][r], "y")
-                        z = self.bound_coord(zz[index][k][j][r], "z")
+                        x = xx[index][k][j][r]
+                        y = yy[index][k][j][r]
+                        z = zz[index][k][j][r]
 
 
 
-                        inter_q = q([x,y,z])
+                        inter_q = q([self.bound_coord(x, "x"),self.bound_coord(y, "y"),self.bound_coord(z, "z")])
+
                         if smooth:
-                            inter_q *= self.super_gaussian(x,y,z, bh_pos, bh_rad)
-                            inter_q *= self.super_gaussian(x,y,z, bh_pos2, bh_rad2)
+                            #inter_q *= self.super_gaussian(x,y,z, bh_pos, bh_rad)
+                            #inter_q *= self.super_gaussian(x,y,z, bh_pos2, bh_rad2)
+                            inter_q *= self.split_function(x, y, z, bh_pos, bh_pos2, bbh_distance/scaling_factor, bbh_distance/scaling_factor)
 
                         values[index][k][j][r] = inter_q
 
@@ -365,6 +383,48 @@ class ETInterpolater:
         return 1-I*np.exp(-2*r**n)
 
 
+    def split_function(self, x, y, z, posBH1, posBH2, R1, R2):
+        r"""
+        C^2 function `f` that takes the value 1 in the vicinity of BH1,
+        0 in the vicinity of BH2 and 1/2 far from BH1 and BH2
+
+        INPUT:
+
+        - ``x``, ``y``, ``z`` -- Cartesian coordinates `(x,y,z)` of the point
+          where the function `f` is to be evaluated
+        - ``posBH1`` -- 3-tuple of Cartesian coordinates specifying the
+          location of BH1
+        - ``posBH2`` -- 3-tuple of Cartesian coordinates specifying the
+          location of BH2
+        - ``R1`` -- radius of ball around BH1 where `f(x,y,z) = 1`
+        - ``R2`` -- radius of ball around BH2 where `f(x,y,z) = 0`
+
+        OUTPUT:
+
+        - value of `f(x,y,z)`
+
+        """
+        x1, y1, z1 = posBH1
+        r1 = np.sqrt((x - x1)**2 + (y - y1)**2 + (z - z1)**2)
+        if r1 < R1:
+            return 1
+        x2, y2, z2 = posBH2
+        r2 = np.sqrt((x - x2)**2 + (y - y2)**2 + (z - z2)**2)
+        if r2 < R2:
+            return 0
+        D = np.sqrt((x1 - x2)**2 + (y1 - y2)**2 + (z1 - z2)**2)
+        a = D / (R1 + R2)
+        A1 = a * R1
+        if r1 < A1:
+            xx = (r1 - R1) / (A1 - R1)
+            return -3*xx**5 + 7.5*xx**4 - 5*xx**3 + 1  # S2_1
+        A2 = a * R2
+        if r2 < A2:
+            xx = (r2 - R2) / (A2 - R2)
+            return 3*xx**5 - 7.5*xx**4 + 5*xx**3  # S2_2
+        return 0.5
+
+
 
     def read_bbh_diag(self):
         itbh1, tbh1, xbh1, ybh1, zbh1, rbh1 = np.loadtxt("%s/output-0000/bbh3d/BH_diagnostics.ah1.gp" %self.dir,
@@ -382,7 +442,7 @@ class ETInterpolater:
 
 
 
-    def analyse_bbh(self, geometry, quantity, iterations, test=False):
+    def analyse_bbh(self, geometry, quantity, iterations, test=False, split=True, scaling_factor=4.0):
 
         if self.nb_bodies > 1:
             possible_iterations, positions, radii = self.read_bbh_diag()
@@ -392,7 +452,7 @@ class ETInterpolater:
                 "kxx", "kxy", "kxz", "kyy", "kyz", "kzz"]
 
 
-        smooth = False if self.nb_bodies == 1 else True
+        split = False if self.nb_bodies == 1 else split
         start_time = time.time()
         for it in iterations:
             print "[~] Starting with Iteration %s \n" %it
@@ -408,6 +468,7 @@ class ETInterpolater:
                 pos2 = (positions[1,:,it_index])[0,0,:]
                 radius1 = (radii[0,it_index])[0,0]
                 radius2 = (radii[1,it_index])[0,0]
+
             else:
                 pos1 = [0,0,0]
                 pos2 = [0,0,0]
@@ -415,12 +476,14 @@ class ETInterpolater:
                 radius1 = 0
                 radius2 = 0
 
+
             if test:
                 if self.nb_bodies == 1:
                     self.make_test_plot("alp")
                 elif self.nb_bodies == 2:
-                    self.make_test_bbh_plot("kxx", pos1, pos2, radius1, radius2)
-                    
+                    self.make_test_bbh_plot("gxx", pos2, pos1, radius2, radius1)
+
+
 
 
             for quantity in quantites:
@@ -431,15 +494,8 @@ class ETInterpolater:
                 #BH1
                 print "[~] Starting with Black Hole 1"
 
-                """
-                if quantity in ["alp", "betax", "betay", "betaz"]:
-                    smooth = False
-                else:
-                    smooth = True
-                """
-                smooth=False
 
-                values, flatten_values = self.get_values_at_coll_points(q,smooth=smooth, bh_pos=pos1, bh_rad=radius1,bh_pos2=pos2, bh_rad2=radius2)
+                values, flatten_values = self.get_values_at_coll_points(q,smooth=split, bh_pos=pos1, bh_rad=radius1,bh_pos2=pos2, bh_rad2=radius2, scaling_factor=scaling_factor)
                 filename = "../Python/%s_%s_body1.txt" %(quantity, it)
                 self.write_flatten_values_to_file(flatten_values, it, 1, filename)
 
@@ -448,7 +504,7 @@ class ETInterpolater:
                 if self.nb_bodies > 1:
                     print "[~] Now Black Hole 2"
 
-                    values, flatten_values = self.get_values_at_coll_points(q,smooth=True, bh_pos=pos2, bh_rad=radius2,bh_pos2=pos1, bh_rad2=radius1)
+                    values, flatten_values = self.get_values_at_coll_points(q,smooth=split, bh_pos=pos2, bh_rad=radius2,bh_pos2=pos1, bh_rad2=radius1, scaling_factor=scaling_factor)
                     filename = "../Python/%s_%s_body2.txt" %(quantity, it)
                     self.write_flatten_values_to_file(flatten_values, it, 2, filename)
 
@@ -482,10 +538,11 @@ if __name__=="__main__":
     quantity = "kxx"
     filename = "%s.txt" %quantity
     inter = ETInterpolater(folder, 2)
-    g = inter.make_geometry([-50, -50, -50], 400)
+    #g = inter.make_geometry([-50, -50, -50], 400)
+    g = inter.make_positive_geometry([100, 100, 100], 200)
     it = 0
 
-    inter.analyse_bbh(g, quantity, [it], test=True)
+    inter.analyse_bbh(g, quantity, [it], test=False)
 
     #q = inter.read_ET_quantity(quantity, g, it, dimentions=3, order=4)
 
