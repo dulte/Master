@@ -294,7 +294,29 @@ class ETInterpolater:
         Parameters
         ----------
         interpolated_quantity : postcactus.grid_data.grid
-            
+            Interpolation function for the given quantity
+        smooth : bool, optional
+            Whether or not the splitting function will be applied (default is True)
+        bh_pos : list, optional
+            The position of the first BH (default is [0,0,0])
+        bh_rad : float, optional
+            The radius of the first BH (dafault is 0)
+        bh_pos2 : list, optional
+            The position of the second BH (default is [0,0,0])
+        bh_rad2 : float, optional
+            The radius of the second BH (dafault is 0)
+        scaling_factor : float, optinal
+            The scaling factor used in the splitting funciton (default is 4.0)
+        test : bool, optional 
+            If True this will make a test plot
+
+        Returns
+        -------
+        Dict : 
+            The values as a dict with the same structure as the collocation points
+        List :
+            A flat list of the calculated values
+
 
 
         """
@@ -363,7 +385,29 @@ class ETInterpolater:
 
 
     def bound_coord(self, coord, tp):
+        """
+        Bounds the coordinates, so that other functions don't try to get
+        function values outside of defined area. It also handles infinite
+        bounderies which is sometime needed. It will also desymmeterize
+        the coordinate (see the desymmeterize_coord function)
 
+        Parameters
+        ----------
+        coord : float
+            The value of the coordinate
+        tp : str
+            Which axis: x, y or z
+
+        Raises
+        ------
+        ValueError
+            If tp is not x, y or z
+        
+        Returns
+        -------
+        float
+            The bounded and desymmeterized coodinate value
+        """
         if coord == np.inf or coord != coord:
             if tp == "x":
                 coord = self.xlim[0] - 5
@@ -371,6 +415,8 @@ class ETInterpolater:
                 coord = self.ylim[0] - 5
             elif tp == "z":
                 coord = self.zlim[0] - 5
+            else:
+                raise ValueError("%s is not an axis" %tp)
         elif coord == -np.inf:# or coord == -np.nan:
             #print coord, self.xlim[1]
             if tp == "x":
@@ -379,6 +425,8 @@ class ETInterpolater:
                 coord = self.ylim[1] + 5
             elif tp == "z":
                 coord = self.zlim[1] + 5
+            else:
+                raise ValueError("%s is not an axis" %tp)
 
         return self.desymmetrize_coord(coord)
 
