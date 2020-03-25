@@ -64,28 +64,32 @@ class ETInterpolater:
         and geometery. If the dimensions is 2 the xy plane is returned, if 
         3 xyz is return, else a error is raised.
 
-        :param quantity: First part of the name of the HDF5 file containg that data
-        :type quantity: str
-
-        :param geometry: The geometry at which the data should be read and interpolated
-        :type geometry: postcactus.grid_data.RegGeom
-
-        :param iteration: The timestep at which the data should be read
-        :type iteration: int
-
-        :param dimentions: The dimension of which the data should be read (default is 3)
-        :type dimentions: int, optional
-
-        :param order: The order of the interpolation (default is 4)
-        :type order: int, optional
-
+        Parameters
+        ----------
+        quantity : str
+            First part of the name of the HDF5 file containg that data
+        geometry : postcactus.grid_data.RegGeom
+            The geometry at which the data should be read and interpolated
+        iteration : int 
+            The timestep at which the data should be read
+        dimentions : int, optional 
+            The dimension of which the data should be read (default is 3)
+        order : int, optional 
+            The order of the interpolation (default is 4)
         
-        :raises ValueError: If the dimensions are not 2 or 3
-        :raises ValueError: If the quantity could not be read/wrong name of quantity
+        Raises
+        ------
+        
+        ValueError
+            If the dimensions are not 2 or 3
+        ValueError 
+            If the quantity could not be read/wrong name of quantity
         
         
-        :returns grid: Function values of read data, with in the given geometry
-        :rtype: postcactus.grid_data.grid
+        Returns
+        -------
+        postcactus.grid_data.grid
+            Function values of read data, with in the given geometry
 
 
         """
@@ -110,17 +114,80 @@ class ETInterpolater:
 
 
     def make_geometry(self, corner, n_pts):
+        """
+        Make a geometry needed to read Einstein Toolkit quantities.
+        Given the bottom left corner, this will return a geometry using
+        a second corner which is a mirror of the given corner, mirrored
+        around the origin.
+
+        Parameters
+        ----------
+        corner : list
+            Bottom left corner of the geomtery
+        n_pts : int
+            Number of points in the geomtery
+
+        
+        Raises
+        ------
+        ValueErrror
+            If the corner is not 2 or 3 dimensional
+
+        Returns
+        -------
+        postcactus.grid_data.RegGeom    
+            The geometry
+
+
+        """
+        if len(corder) > 3 or len(corder) < 2:
+            raise ValueError("Wrong Number of Corners! User 2 or 3!")
+
         corner1 = [-i for i in corner]
         self.xlim = [corner1[0], corner[0]]
         self.ylim = [corner1[1], corner[1]]
 
         if len(corner) == 3:
             self.zlim = [corner1[2], corner[2]]
+        
         geo = gd.RegGeom([n_pts]*len(corner), corner, x1=corner1)
         print "[+] Geomentry Successfully Made"
         return geo
 
+
+    
+
     def make_positive_geometry(self, corner, n_pts):
+        """
+        Make a geometry needed to read Einstein Toolkit quantities.
+        This will make a geometry with one corner at the origin, and 
+        the other at the given corner. This is for cases where the 
+        Einstein Toolkit simulation is done with symmetry in xyz!
+
+        Parameters
+        ----------
+        corner : list
+            Bottom left corner of the geomtery
+        n_pts : int
+            Number of points in the geomtery
+
+        
+        Raises
+        ------
+        ValueErrror
+            If the corner is not 2 or 3 dimensional
+
+        Returns
+        -------
+        postcactus.grid_data.RegGeom    
+            The geometry
+
+
+        """
+
+        if len(corder) > 3 or len(corder) < 2:
+            raise ValueError("Wrong Number of Corners! User 2 or 3!")
+
         corner1 = [abs(i) for i in corner]
         self.xlim = [0, abs(corner[0])]
         self.ylim = [0, abs(corner[1])]
@@ -135,6 +202,17 @@ class ETInterpolater:
 
 
     def make_test_plot(self, quantity):
+        """
+        A simple function to test if the module is able to read and interpolate
+        a given quantity. The result of the xy plane is then plotted as a 
+        pcolormesh.
+
+        Parameters
+        ----------
+        quantity : str
+            The quantity the user wants to test plot.
+
+        """
         g = self.make_geometry([-50,-50], 400)
         q = self.read_ET_quantity(quantity, g, 0, dimentions=2)
 
@@ -155,6 +233,17 @@ class ETInterpolater:
 
 
     def make_test_bbh_plot(self, quantity, p1, p2, r1, r2):
+        """
+        A simple function to test if the module is able to read and interpolate
+        a given quantity with two bodies. The code wil apply the splitt function.
+        The result of the xy plane is then plotted as a pcolormesh and a contour plot.
+
+        Parameters
+        ----------
+        quantity : str
+            The quantity the user wants to test plot.
+
+        """
         #g = self.make_geometry([-50,-50], 400)
         g = self.make_positive_geometry([50,50], 400)
         q = self.read_ET_quantity(quantity, g, 0, dimentions=2)
@@ -173,7 +262,7 @@ class ETInterpolater:
         for i in range(n):
             for j in range(n):
                 q_inter[j,i] = q(np.array([self.desymmetrize_coord(x[i]), self.desymmetrize_coord(y[j])]))
-                #q_inter[j,i] *= self.split_function(x[i], y[j], 0, p1, p2, bbh_distance/scaling_factor, bbh_distance/scaling_factor)
+                q_inter[j,i] *= self.split_function(x[i], y[j], 0, p1, p2, bbh_distance/scaling_factor, bbh_distance/scaling_factor)
 
 
         xx = p1[0] + r1*np.cos(th)
@@ -196,6 +285,19 @@ class ETInterpolater:
 
 
     def get_values_at_coll_points(self, interpolated_quantity,smooth=True, bh_pos=[0,0,0], bh_rad=0,bh_pos2=[0,0,0], bh_rad2=0, scaling_factor=4.0, test=False):
+        """
+        One of the main functions of the module. This function takes in a interpolation
+        function of a quantity. It will then use LORENE to find the collocation points.
+        It will then go though all the collocation points, find the fuction value
+        at that point, then use the splitting function on the value (given smooth is true)
+
+        Parameters
+        ----------
+        interpolated_quantity : postcactus.grid_data.grid
+            
+
+
+        """
         q = interpolated_quantity
 
         xx, yy, zz = self.get_coll_points(bh_pos)
