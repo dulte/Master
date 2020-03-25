@@ -30,7 +30,24 @@ TODO:
 
 
 class ETInterpolater:
+    """
+    A class used to read the 3+1 quantities simulated with Einstein Toolkit,
+    interpolate them, then use C code build around LORENE to find the collocation 
+    points needed to do a spectral transformation. It can then find the function 
+    vaules at these points, and call the C code to do the spectral transformation.
+    """
+
     def __init__(self, dir, nb_bodies=2):
+        """
+        Parameters
+        ----------
+
+        dir : str
+            The directory of the Einstein Toolkit results
+        nb_bodies : int, optional
+            Number of objects in the Einstein Toolkit simulation (default set to 2)
+
+        """
         self.sd = SimDir(dir)
         self.nb_bodies = nb_bodies
 
@@ -42,11 +59,49 @@ class ETInterpolater:
 
 
     def read_ET_quantity(self,quantity, geometry, iteration, dimentions=3, order=4):
+        """
+        Reads a Einstein Toolkit quantity from HDF5 files for a given iteration 
+        and geometery. If the dimensions is 2 the xy plane is returned, if 
+        3 xyz is return, else a error is raised.
+
+        :param quantity: First part of the name of the HDF5 file containg that data
+        :type quantity: str
+
+        :param geometry: The geometry at which the data should be read and interpolated
+        :type geometry: postcactus.grid_data.RegGeom
+
+        :param iteration: The timestep at which the data should be read
+        :type iteration: int
+
+        :param dimentions: The dimension of which the data should be read (default is 3)
+        :type dimentions: int, optional
+
+        :param order: The order of the interpolation (default is 4)
+        :type order: int, optional
+
+        
+        :raises ValueError: If the dimensions are not 2 or 3
+        :raises ValueError: If the quantity could not be read/wrong name of quantity
+        
+        
+        :returns grid: Function values of read data, with in the given geometry
+        :rtype: postcactus.grid_data.grid
+
+
+        """
+
+
         if dimentions == 2:
-            grid = self.sd.grid.xy.read(quantity, iteration, geom=geometry, order=order)
+            try:
+                grid = self.sd.grid.xy.read(quantity, iteration, geom=geometry, order=order)
+            except:
+                raise ValueError("Quantity %s could not be read!" %quantity)
 
         elif dimentions == 3:
-            grid = self.sd.grid.xyz.read(quantity, iteration, geom=geometry, order=order)
+            try:
+                grid = self.sd.grid.xyz.read(quantity, iteration, geom=geometry, order=order)
+            except:
+                raise ValueError("Quantity %s could not be read!" %quantity)
         else:
             raise ValueError("Number of dimentions should be 2 or 3!")
 
