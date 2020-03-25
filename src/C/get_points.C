@@ -27,28 +27,50 @@ TODO:
 using namespace Lorene ;
 double * get_flatten_values(int size, char*);
 double readdata(double *values, int l, int k, int j, int i, int nz, int nr, int nt, int np);
+double readdata(double *values, int l, int k, int j, int i, int nz, int *nr, int *nt, int *np);
 double *read_from_file(int size, char* name, int body, int it);
 
 int main(int argc, char **argv) {
 
-    if(argc < 6){
+    if(argc < 5){
         cout << "Usage: program x_origin y_origin z_origin 0 (write to screen)/1 (read values from file) body iteration" << endl;
         exit(1);
     }
 
     // Setup of a multi-domain grid (Lorene class Mg3d)
     // ------------------------------------------------
+    int nz = 6 ; 	// Number of domains
+    /*
+    int nr = 25; 	// Number of collocation points in r in each domain
+    int nt = 11 ; 	// Number of collocation points in theta in each domain
+    int np = 42 ; 	// Number of collocation points in phi in each domain
+    */
 
-    int nz = 3 ; 	// Number of domains
-    int nr = 7 ; 	// Number of collocation points in r in each domain
-    int nt = 5 ; 	// Number of collocation points in theta in each domain
-    int np = 8 ; 	// Number of collocation points in phi in each domain
+    int nr_array[]  = {55, 55, 55, 85, 17, 11};
+    int nt_array[]  = {11, 11, 11, 11, 11, 11};
+    int np_array[]  = {52, 72, 72, 82, 42, 42};
+
+
+
+    // int size = nz*nr*np*nt
+    int size = 0;
+
+
+    for(int j = 0; j < nz; j++){
+      size += nr_array[j]*nt_array[j]*np_array[j];
+    }
+
+
+
+    int type_r[] = {RARE, FIN, FIN, FIN, FIN, UNSURR};
     int symmetry_theta = SYM ; // symmetry with respect to the equatorial plane
-    int symmetry_phi = SYM ; // no symmetry in phi
+    int symmetry_phi = NONSYM ; // no symmetry in phi
     bool compact = true ; // external domain is compactified
 
+
     // Multi-domain grid construction:
-    Mg3d mgrid(nz, nr, nt, np, symmetry_theta, symmetry_phi, compact) ;
+    //Mg3d mgrid(nz, nr_array, type_r, nt_array, np_array, symmetry_theta, symmetry_phi, compact) ;
+    Mg3d mgrid(nz, nr_array, type_r, nt_array, symmetry_theta, np_array, symmetry_phi, NULL) ;
 
     cout << mgrid << endl ;
 
@@ -57,7 +79,7 @@ int main(int argc, char **argv) {
     // --------------------------------------------------------------------------
 
     // radial boundaries of each domain:
-    double r_limits[] = {0., 1., 2., __infinity} ;
+    double r_limits[] = {0., 0.5, 1.5, 4, 8, 20, __infinity} ;
 
     Map_af map(mgrid, r_limits) ;   // Mapping construction
 
@@ -76,6 +98,7 @@ int main(int argc, char **argv) {
     const Coord& x = map.xa ;        // x field
     const Coord& y = map.ya ;        // y field
     const Coord& z = map.za ;        // z field
+
 
     int read_write;
     sscanf(argv[4], "%d", &read_write);
@@ -103,31 +126,33 @@ int main(int argc, char **argv) {
         To be fixed...
         */
 
+        printf("%s\n", "[~] Reading Files");
+
         // Lapse
-        double *value_alp = read_from_file(3 + nz*nr*nt*np, "alp", body, it);
+        double *value_alp = read_from_file(3 + size, "alp", body, it);
 
         // Shift
-        double *value_betax = read_from_file(3 + nz*nr*nt*np, "betax", body, it);
-        double *value_betay = read_from_file(3 + nz*nr*nt*np, "betay", body, it);
-        double *value_betaz = read_from_file(3 + nz*nr*nt*np, "betaz", body, it);
+        double *value_betax = read_from_file(3 + size, "betax", body, it);
+        double *value_betaz = read_from_file(3 + size, "betaz", body, it);
+        double *value_betay = read_from_file(3 + size, "betay", body, it);
 
         // Metric
-        double *value_gxx = read_from_file(3 + nz*nr*nt*np, "gxx", body, it);
-        double *value_gxy = read_from_file(3 + nz*nr*nt*np, "gxy", body, it);
-        double *value_gxz = read_from_file(3 + nz*nr*nt*np, "gxz", body, it);
+        double *value_gxx = read_from_file(3 + size, "gxx", body, it);
+        double *value_gxy = read_from_file(3 + size, "gxy", body, it);
+        double *value_gxz = read_from_file(3 + size, "gxz", body, it);
 
-        double *value_gyy = read_from_file(3 + nz*nr*nt*np, "gyy", body, it);
-        double *value_gyz = read_from_file(3 + nz*nr*nt*np, "gyz", body, it);
-        double *value_gzz = read_from_file(3 + nz*nr*nt*np, "gzz", body, it);
+        double *value_gyy = read_from_file(3 + size, "gyy", body, it);
+        double *value_gyz = read_from_file(3 + size, "gyz", body, it);
+        double *value_gzz = read_from_file(3 + size, "gzz", body, it);
 
         // Curvature
-        double *value_kxx = read_from_file(3 + nz*nr*nt*np, "kxx", body, it);
-        double *value_kxy = read_from_file(3 + nz*nr*nt*np, "kxy", body, it);
-        double *value_kxz = read_from_file(3 + nz*nr*nt*np, "kxz", body, it);
+        double *value_kxx = read_from_file(3 + size, "kxx", body, it);
+        double *value_kxy = read_from_file(3 + size, "kxy", body, it);
+        double *value_kxz = read_from_file(3 + size, "kxz", body, it);
 
-        double *value_kyy = read_from_file(3 + nz*nr*nt*np, "kyy", body, it);
-        double *value_kyz = read_from_file(3 + nz*nr*nt*np, "kyz", body, it);
-        double *value_kzz = read_from_file(3 + nz*nr*nt*np, "kzz", body, it);
+        double *value_kyy = read_from_file(3 + size, "kyy", body, it);
+        double *value_kyz = read_from_file(3 + size, "kyz", body, it);
+        double *value_kzz = read_from_file(3 + size, "kzz", body, it);
 
 
         printf("%s\n", "[+] Files Successfully Read");
@@ -154,40 +179,40 @@ int main(int argc, char **argv) {
         // Assignes values from the read files
 
         for(int l=0;l<nz;l++){
-            for(int k=0;k<np;k++){
-                for(int j=0;j<nt;j++){
-                    for(int i=0;i<nr;i++){
-                        double Ndata = readdata(value_alp, l, k, j, i, nz, nr, nt, np);
+            for(int k=0;k<np_array[l];k++){
+                for(int j=0;j<nt_array[l];j++){
+                    for(int i=0;i<nr_array[l];i++){
+                        //cout << l << " " << k << " " << j << " " << i << " " << l*k*j*i << " " << size << endl;
+                        double Ndata = readdata(value_alp, l, k, j, i,nz, nr_array, nt_array, np_array);
                         N.set_grid_point(l, k, j, i) = Ndata;
-                        beta.set(1).set_grid_point(l, k, j, i) = readdata(value_betax, l, k, j, i, nz, nr, nt, np);
-                        beta.set(2).set_grid_point(l, k, j, i) = readdata(value_betay, l, k, j, i, nz, nr, nt, np);
-                        beta.set(3).set_grid_point(l, k, j, i) = readdata(value_betaz, l, k, j, i, nz, nr, nt, np);
+                        beta.set(1).set_grid_point(l, k, j, i) = readdata(value_betax, l, k, j, i, nz, nr_array, nt_array, np_array);
+                        beta.set(2).set_grid_point(l, k, j, i) = readdata(value_betay, l, k, j, i, nz, nr_array, nt_array, np_array);
+                        beta.set(3).set_grid_point(l, k, j, i) = readdata(value_betaz, l, k, j, i, nz, nr_array, nt_array, np_array);
 
-                        gamma.set(1,1).set_grid_point(l, k, j, i) = readdata(value_gxx, l, k, j, i, nz, nr, nt, np);
-                        gamma.set(1,2).set_grid_point(l, k, j, i) = readdata(value_gxy, l, k, j, i, nz, nr, nt, np);
-                        gamma.set(1,3).set_grid_point(l, k, j, i) = readdata(value_gxz, l, k, j, i, nz, nr, nt, np);
+                        gamma.set(1,1).set_grid_point(l, k, j, i) = readdata(value_gxx, l, k, j, i, nz, nr_array, nt_array, np_array);
+                        gamma.set(1,2).set_grid_point(l, k, j, i) = readdata(value_gxy, l, k, j, i, nz, nr_array, nt_array, np_array);
+                        gamma.set(1,3).set_grid_point(l, k, j, i) = readdata(value_gxz, l, k, j, i, nz, nr_array, nt_array, np_array);
 
-                        gamma.set(2,2).set_grid_point(l, k, j, i) = readdata(value_gyy, l, k, j, i, nz, nr, nt, np);
-                        gamma.set(2,3).set_grid_point(l, k, j, i) = readdata(value_gyz, l, k, j, i, nz, nr, nt, np);
-                        gamma.set(3,3).set_grid_point(l, k, j, i) = readdata(value_gzz, l, k, j, i, nz, nr, nt, np);
+                        gamma.set(2,2).set_grid_point(l, k, j, i) = readdata(value_gyy, l, k, j, i, nz, nr_array, nt_array, np_array);
+                        gamma.set(2,3).set_grid_point(l, k, j, i) = readdata(value_gyz, l, k, j, i, nz, nr_array, nt_array, np_array);
+                        gamma.set(3,3).set_grid_point(l, k, j, i) = readdata(value_gzz, l, k, j, i, nz, nr_array, nt_array, np_array);
 
-                        gamma.set(2,1).set_grid_point(l, k, j, i) = readdata(value_gxy, l, k, j, i, nz, nr, nt, np);
-                        gamma.set(3,1).set_grid_point(l, k, j, i) = readdata(value_gxz, l, k, j, i, nz, nr, nt, np);
-                        gamma.set(3,2).set_grid_point(l, k, j, i) = readdata(value_gyz, l, k, j, i, nz, nr, nt, np);
+                        gamma.set(2,1).set_grid_point(l, k, j, i) = readdata(value_gxy, l, k, j, i, nz, nr_array, nt_array, np_array);
+                        gamma.set(3,1).set_grid_point(l, k, j, i) = readdata(value_gxz, l, k, j, i, nz, nr_array, nt_array, np_array);
+                        gamma.set(3,2).set_grid_point(l, k, j, i) = readdata(value_gyz, l, k, j, i, nz, nr_array, nt_array, np_array);
 
 
-                        curvature.set(1,1).set_grid_point(l, k, j, i) = readdata(value_kxx, l, k, j, i, nz, nr, nt, np);
-                        curvature.set(1,2).set_grid_point(l, k, j, i) = readdata(value_kxy, l, k, j, i, nz, nr, nt, np);
-                        curvature.set(1,3).set_grid_point(l, k, j, i) = readdata(value_kxz, l, k, j, i, nz, nr, nt, np);
+                        curvature.set(1,1).set_grid_point(l, k, j, i) = readdata(value_kxx, l, k, j, i, nz, nr_array, nt_array, np_array);
+                        curvature.set(1,2).set_grid_point(l, k, j, i) = readdata(value_kxy, l, k, j, i, nz, nr_array, nt_array, np_array);
+                        curvature.set(1,3).set_grid_point(l, k, j, i) = readdata(value_kxz, l, k, j, i, nz, nr_array, nt_array, np_array);
 
-                        curvature.set(2,2).set_grid_point(l, k, j, i) = readdata(value_kyy, l, k, j, i, nz, nr, nt, np);
-                        curvature.set(2,3).set_grid_point(l, k, j, i) = readdata(value_kyz, l, k, j, i, nz, nr, nt, np);
-                        curvature.set(3,3).set_grid_point(l, k, j, i) = readdata(value_kzz, l, k, j, i, nz, nr, nt, np);
+                        curvature.set(2,2).set_grid_point(l, k, j, i) = readdata(value_kyy, l, k, j, i, nz, nr_array, nt_array, np_array);
+                        curvature.set(2,3).set_grid_point(l, k, j, i) = readdata(value_kyz, l, k, j, i, nz, nr_array, nt_array, np_array);
+                        curvature.set(3,3).set_grid_point(l, k, j, i) = readdata(value_kzz, l, k, j, i, nz, nr_array, nt_array, np_array);
 
-                        curvature.set(2,1).set_grid_point(l, k, j, i) = readdata(value_kxy, l, k, j, i, nz, nr, nt, np);
-                        curvature.set(3,1).set_grid_point(l, k, j, i) = readdata(value_kxz, l, k, j, i, nz, nr, nt, np);
-                        curvature.set(3,2).set_grid_point(l, k, j, i) = readdata(value_kyz, l, k, j, i, nz, nr, nt, np);
-
+                        curvature.set(2,1).set_grid_point(l, k, j, i) = readdata(value_kxy, l, k, j, i, nz, nr_array, nt_array, np_array);
+                        curvature.set(3,1).set_grid_point(l, k, j, i) = readdata(value_kxz, l, k, j, i, nz, nr_array, nt_array, np_array);
+                        curvature.set(3,2).set_grid_point(l, k, j, i) = readdata(value_kyz, l, k, j, i, nz, nr_array, nt_array, np_array);
                     }
                 }
             }
@@ -283,21 +308,35 @@ double readdata(double *values, int l, int k, int j, int i, int nz, int nr, int 
     return *(values + index);
 }
 
+double readdata(double *values, int l, int k, int j, int i, int nz, int *nr, int *nt, int *np){
+    int outer_size = 0;
+
+    for(int m = 0; m < l; m++){
+      outer_size += nr[m]*nt[m]*np[m];
+    }
+
+    int index = 3 + outer_size + k*nt[l]*nr[l] + j*nr[l] + i;
+
+    //cout << index << endl;
+    return *(values + index);
+}
 
 double *get_flatten_values(int size, char* filename){
 
+    const int max_size = 2048*128;
 
     FILE *myFile;
     //myFile = fopen("flatten.txt", "r");
     myFile = fopen(filename, "r");
 
-    if(size > 1024){
+    if(size > max_size){
         cout << "Too large a size for the flatten data size!" << endl;
         exit(1);
     }
 
+    /*
     //read file into array
-    static double values[1024];
+    static double values[max_size];
     int i;
     if (myFile == NULL){
         printf("Error Reading File\n");
@@ -308,14 +347,26 @@ double *get_flatten_values(int size, char* filename){
         fscanf(myFile, "%lf,", &values[i] );
     }
 
-    /*
-    for (i = 0; i < size; i++){
-        printf("Number is: %f\n\n", values[i]);
-    }
     */
 
 
+    double* values = static_cast<double *>(malloc(sizeof(double) * size));
+    int i;
+    if (myFile == NULL){
+        printf("Error Reading File\n");
+        exit (1);
+    }
+
+    for (i = 0; i < size; i++){
+        fscanf(myFile, "%lf,", &values[i] );
+    }
+
     fclose(myFile);
+    /*
+    for (i = 0; i < size; i++){
+      printf("Number is: %f\n\n", values[i]);
+    }
+    */
 
     return values;
 
