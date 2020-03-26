@@ -35,6 +35,19 @@ class ETInterpolater:
     interpolate them, then use C code build around LORENE to find the collocation 
     points needed to do a spectral transformation. It can then find the function 
     vaules at these points, and call the C code to do the spectral transformation.
+
+    Most user will only need to use make_geometry/make_positive_geometry and analyse_bbh. 
+    A typical run example will be
+
+    .. code-block:: python
+
+        folder = "/some_location/simulations/bbh_3D"
+        inter = ETInterpolater(folder, 2)
+
+        g = inter.make_positive_geometry([100, 100, 100], 200)
+        it = 0
+
+        inter.analyse_bbh(g, quantity="", [it], test=False)
     """
 
     def __init__(self, dir, nb_bodies=2):
@@ -407,6 +420,12 @@ class ETInterpolater:
         -------
         float
             The bounded and desymmeterized coodinate value
+
+        Notes
+        -----
+        The infinite bounds have to be handled better. It will
+        now use the outer coordinate - 5, which is garantied 
+        to lead to discontinuities...
         """
         if coord == np.inf or coord != coord:
             if tp == "x":
@@ -431,11 +450,52 @@ class ETInterpolater:
         return self.desymmetrize_coord(coord)
 
     def desymmetrize_coord(self, coord):
+        """
+        Function for taking care of the symmetries used in Einstein Toolkit.
+        This is a preliminary function, that assumes that Einstein Toolkit
+        uses symmetry in both x, y and z.
+
+        Parameters
+        ----------
+        coord : float
+            The value of the coordinate (point) that needs to be desymmeterized
+        
+        Returns
+        -------
+        float
+            Desymmeterized coordinate point.
+
+        Notes
+        -----
+        This is a temperary function. It assumes total symmetery, and therefore
+        only uses a abs() to desymmeterize. Parameters to choose symmeterization
+        axis will be added later.
+        """
         return abs(coord)
 
 
 
     def flatten_dict(self, d):
+        """
+        Takes a dict formatted as the output from LORENE and flattens it.
+
+        Parameters
+        ----------
+        d : dict
+            A dict with the values at the collocation points. The dict
+            is formatted as the output from LORENE.
+
+        Returns
+        -------
+        list
+            A flatted list with the values from the dict
+
+        Notes
+        -----
+        To get back the value from the flatted list one can use
+        ``` d[l][k][j][i] =  (sum_{0 <= m < l} nr[m]*nt[m]*np[m]) + k*nt[l]*nr[l] + j*nr[l] + i```
+
+        """
         flatten_values = []
         for index,domain in enumerate(d):
             for k in domain.keys():
@@ -448,6 +508,21 @@ class ETInterpolater:
 
 
     def write_values_to_file(self, values, file):
+        """
+        Writes dict to file
+
+        Parameters
+        ----------
+        values : dict
+            Dict with the same formatting as the output of LORENE
+        file : str
+            Filename of the file the user wants to save to
+
+        Notes
+        -----
+        Outdated and should not be used anymore
+        
+        """
         with open(file, "w") as f:
             for index,domain in enumerate(values):
                 f.write("domain %d: \n \n" %index)
@@ -461,6 +536,23 @@ class ETInterpolater:
                     f.write("\n")
 
     def write_flatten_values_to_file(self, values, it, body, file):
+        """
+        Writes flatten list to file. Adds which body the user is saving, 
+        the total number of bodies and the iteration/timestep to the 
+        list before saving
+
+        Parameters
+        ----------
+        values : list
+            Flatten list with the same formatting as the output of LORENE
+        it : int
+            The iteration/timestep
+        body : int
+            Which body this is.
+        file : str
+            Filename of the file the user wants to save to
+        
+        """
         values = [body, self.nb_bodies, it] + values
         with open(file, "w") as f:
             for i in values:
@@ -474,6 +566,34 @@ class ETInterpolater:
 
 
     def LORENE_read(self, filename, origin=[0,0,0], body=1, it=0):
+        """
+        Function responsible of communicating with the C code, which will read
+        the flatten array, make the spectral transformation and save the 
+        Gyoto files.
+
+        Parameters
+        ----------
+        filename : str
+            Name of file users used to save flatten list (not used any longer)
+        origin : list, optional
+            Origin of the spectral grid LORENE will make (default is [0,0,0])
+        body : int, optional
+            Which body this is (default is 1)
+        it : int, optional
+            The iteration/timestep (default is 0)
+
+        Raises
+        ------
+        IOError
+            If the function fails to contact the C code, or if the C code crashes.
+
+        Notes
+        -----
+        The C code is changed to uses generic insted of a user given filename.
+        This means that the filename is irrelevant. This parameter will be
+        removed.
+
+        """
         p = subprocess.Popen("../C/get_points %s %s %s 1 %s %s" %(origin[0], origin[1], origin[2], body, it), stdout=subprocess.PIPE, shell=True)
         #p = subprocess.Popen("./get_points %s %s %s 1" %(origin[0], origin[1], origin[2]), stdout=subprocess.PIPE, shell=True)
         (output, err) = p.communicate()
@@ -486,6 +606,38 @@ class ETInterpolater:
 
 
     def get_coll_points(self, origin=[0,0,0], body=1, it=0):
+        """
+        Function responsible of communicating with the C code to get the 
+        collocation points, then make the output of the C code to three
+        dicts (one for each axis).
+
+        The structure of the dict (and LORENE output) is:
+
+        - ``dict[l]`` is the l'th domain
+        - ``dict[l][k]`` is the k'th phi point(s)
+        - ``dict[l][k][j]`` is the k'th theta point(s)
+        - ``dict[l][k][j][i]`` is the i'th r point
+
+        Parameters
+        ----------
+        origin : list, optional
+            Origin of the spectral grid LORENE will make (default is [0,0,0])
+        body : int, optional
+            Which body this is (default is 1)
+        it : int, optional
+            The iteration/timestep (default is 0)
+
+        Returns
+        -------
+        list, list, list
+            Returns a list of dicts for x, y and z with the collocation points.
+
+        Notes
+        -----
+        This will call all the cleanup function, so this is the only function
+        the user need to use.
+
+        """
         p = subprocess.Popen("../C/get_points %s %s %s 0 %s %s" %(origin[0], origin[1], origin[2], body, it), stdout=subprocess.PIPE, shell=True)
         (output, err) = p.communicate()
         p_status = p.wait()
@@ -507,6 +659,19 @@ class ETInterpolater:
         Takes a string containing the output of the LORENE code and returns
         three dicts (x,y,z) giving the coord position of each coll point.
 
+
+        Parameters
+        ----------
+        s : str
+            The string given by C code, containg the whole output as one string
+
+        Returns
+        -------
+        list, list, list
+            Returns a list of dicts for x, y and z with the collocation points.
+
+        Notes
+        -----
         Very bad practis is used in this function, so might need to be rewritten.
         """
         corrds = []
@@ -545,6 +710,17 @@ class ETInterpolater:
         """
         Takes the string containing the coll points for one coord (x,y or z),
         and returns a list with a dict for each domain.
+
+        Parameters
+        ----------
+        s : str
+            The string containing the collocation points for one coord (x,y or z)
+
+        Returns
+        -------
+        list 
+            Returns a list of dicts for the one coordinate with the collocation points
+
         """
         domains = []
         s = s.split("\n")
@@ -566,7 +742,19 @@ class ETInterpolater:
 
     def get_domain_dict_from_string(self,domain_string):
         """
-        Takes a string for one domain of one coord and returns the dict for that domain.
+        Takes a string for one domain of one coord 
+        and returns the dict for that domain.
+
+        Parameters
+        ----------
+        domain_string : str
+            A string containg the collocation points for one domain and one coord, 
+            formatted as the output from LORENE
+
+        Returns
+        -------
+        dict
+            Dict with the collocation points for that domain.
         """
         domain_dict = {}
         current_k = None
@@ -584,6 +772,32 @@ class ETInterpolater:
 
 
     def super_gaussian(self, x, y, z, bh_pos, rad, I=1, n=10):
+        """
+        Function used to suppress regions of the function grid. 
+
+        Parameters
+        ----------
+        x : float
+            The x coordinate
+        y : float
+            The y coordinate
+        z : float
+            The z coordinate
+        bh_pos : list
+            The position of the BH the user wants to suppress
+        rad : float
+            The radius of the suppression
+        I : float, optional
+            The intesity of the suppression, so the defaul of the function far away
+            from the BH (default is 1)
+        n : int
+            How fast the suppression is (default is 10)
+
+        Returns
+        -------
+        float
+            The suppression factor
+        """
         r = np.sqrt((bh_pos[0]-x)**2 + (bh_pos[1]-y)**2 + (bh_pos[2]-z)**2)/float(rad)
         return 1-I*np.exp(-2*r**n)
 
@@ -632,6 +846,16 @@ class ETInterpolater:
 
 
     def read_bbh_diag(self):
+        """
+        Reads the iterations saved, the positions and radii of the black holes
+
+        Returns
+        -------
+        np.array, np.array([[list, list, list], [list, list, list]]), np.array([list, list])
+            First all the iterations save are returns. Secondly an array with the posision 
+            of the two BHs over time. Lastly the an array with the radii of the BHs
+            over time.
+        """
         itbh1, tbh1, xbh1, ybh1, zbh1, rbh1 = np.loadtxt("%s/output-0000/bbh3d/BH_diagnostics.ah1.gp" %self.dir,
                                                          usecols=(0,1,2,3,4,7),
                                                          unpack=True)
@@ -648,6 +872,36 @@ class ETInterpolater:
 
 
     def analyse_bbh(self, geometry, quantity, iterations, test=False, split=True, scaling_factor=4.0):
+        """
+        The main function of the code. This will read and interpolate all quantities,
+        get the collocation points from the C code, clean it up,
+        find the function values at these points, apply the splitting function 
+        and make the C code do the spectral transfomation.
+
+        Parameters
+        ----------
+        geometry : postcactus.grid_data.RegGeom
+            The geometry at which the data should be read and interpolated
+        quantiy : list
+            A list of quantities which will be processed (redundant as of now)
+        iterations : list
+            A list of iteration the user want to process
+        test : bool, optional
+            Whether to make a test plot or not (default is False)
+        split : bool optional
+            Whether or not to apply the splitting function (default is True)
+        scaling_factor : float, optional
+            The scaling factor used to determine the distance at which
+            the splitting factor will be used (default is 4.0)
+
+
+        
+        Notes
+        -----
+
+        - The code will now go through all quantities, so the quantity parameter is redundant and will be removed.
+        - This code is as of now only applicable to equal-massed BHs. This will be change, and then there will be two scaling factors.
+        """
 
         if self.nb_bodies > 1:
             possible_iterations, positions, radii = self.read_bbh_diag()
