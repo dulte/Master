@@ -87,6 +87,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#first-version-in-python">First Version in Python</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#schematic-view-of-the-code">Schematic View of the Code</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#in-depth-of-the-python-code">In-depth of the Python Code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setup-of-the-c-code">Setup of the C Code</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">ETInterpolater</a></li>
@@ -223,6 +224,35 @@ inter.analyse_bbh(g, quantity=””, it, test=True)</div></blockquote>
 </li>
 </ol>
 <p>The program is now done, and Gyoto can be run.</p>
+</div>
+<div class="section" id="setup-of-the-c-code">
+<h2>Setup of the C Code<a class="headerlink" href="#setup-of-the-c-code" title="Permalink to this headline">¶</a></h2>
+<p>The C code needs to be set up before using. This means that the user will need to specify some variables needed to run</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="n">nz</span> <span class="o">=</span> <span class="mi">6</span> <span class="p">;</span>        <span class="c1">// Number of domains</span>
+<span class="kt">int</span> <span class="n">nr_array</span><span class="p">[]</span>  <span class="o">=</span> <span class="p">{</span><span class="mi">55</span><span class="p">,</span> <span class="mi">55</span><span class="p">,</span> <span class="mi">55</span><span class="p">,</span> <span class="mi">85</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">11</span><span class="p">};</span> <span class="c1">// Number of r points for each domain</span>
+<span class="kt">int</span> <span class="n">nt_array</span><span class="p">[]</span>  <span class="o">=</span> <span class="p">{</span><span class="mi">11</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">11</span><span class="p">};</span> <span class="c1">// Number of theta points for each domain</span>
+<span class="kt">int</span> <span class="n">np_array</span><span class="p">[]</span>  <span class="o">=</span> <span class="p">{</span><span class="mi">52</span><span class="p">,</span> <span class="mi">72</span><span class="p">,</span> <span class="mi">72</span><span class="p">,</span> <span class="mi">82</span><span class="p">,</span> <span class="mi">42</span><span class="p">,</span> <span class="mi">42</span><span class="p">};</span> <span class="c1">// Number of phi points for each domain</span>
+
+<span class="p">...</span>
+
+<span class="c1">// Type of coordsystem for each domain. Should always be RARE first, UNSURR last and FIN inbetween</span>
+<span class="kt">int</span> <span class="n">type_r</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span><span class="n">RARE</span><span class="p">,</span> <span class="n">FIN</span><span class="p">,</span> <span class="n">FIN</span><span class="p">,</span> <span class="n">FIN</span><span class="p">,</span> <span class="n">FIN</span><span class="p">,</span> <span class="n">UNSURR</span><span class="p">};</span>
+<span class="kt">int</span> <span class="n">symmetry_theta</span> <span class="o">=</span> <span class="n">SYM</span> <span class="p">;</span> <span class="c1">// symmetry with respect to the equatorial plane</span>
+<span class="kt">int</span> <span class="n">symmetry_phi</span> <span class="o">=</span> <span class="n">NONSYM</span> <span class="p">;</span> <span class="c1">// no symmetry in phi</span>
+<span class="kt">bool</span> <span class="n">compact</span> <span class="o">=</span> <span class="nb">true</span> <span class="p">;</span> <span class="c1">// external domain is compactified</span>
+
+<span class="p">...</span>
+
+<span class="c1">// radial boundaries of each domain:</span>
+<span class="kt">double</span> <span class="n">r_limits</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="n">__infinity</span><span class="p">}</span> <span class="p">;</span>
+</pre></div>
+</div>
+<p>The first set of variables is the number of domains and the number of collocation points with in each domain.</p>
+<p>The second set of variables are the type of coordinates in each domain. These should be set as descriped in the code.
+The other variables are the symmeteres and compactness of the coordinates. These should be left alone.</p>
+<p>The last variables is the radial boundaries of each domain. The first and second domain should cover the inner black hole,
+and the second should be in it own domain as well. There should be at least one domain between the out black hole and infinit, so that
+the gravitational waves are resolved here.</p>
 </div>
 </div>
 

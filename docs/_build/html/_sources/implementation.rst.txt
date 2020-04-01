@@ -73,3 +73,39 @@ the code will start its magic (test is there to make plots during the run, to se
 
 
 The program is now done, and Gyoto can be run. 
+
+Setup of the C Code
+-------------------
+The C code needs to be set up before using. This means that the user will need to specify some variables needed to run
+
+.. code-block:: C
+
+    int nz = 6 ; 	// Number of domains
+    int nr_array[]  = {55, 55, 55, 85, 17, 11}; // Number of r points for each domain
+    int nt_array[]  = {11, 11, 11, 11, 11, 11}; // Number of theta points for each domain
+    int np_array[]  = {52, 72, 72, 82, 42, 42}; // Number of phi points for each domain
+
+    ...
+
+    // Type of coordsystem for each domain. Should always be RARE first, UNSURR last and FIN inbetween
+    int type_r[] = {RARE, FIN, FIN, FIN, FIN, UNSURR}; 
+    int symmetry_theta = SYM ; // symmetry with respect to the equatorial plane
+    int symmetry_phi = NONSYM ; // no symmetry in phi
+    bool compact = true ; // external domain is compactified
+
+    ...
+
+    // radial boundaries of each domain:
+    double r_limits[] = {0., 0.5, 1.5, 4, 8, 20, __infinity} ;
+
+
+The first set of variables is the number of domains and the number of collocation points with in each domain.
+
+The second set of variables are the type of coordinates in each domain. These should be set as descriped in the code.
+The other variables are the symmeteres and compactness of the coordinates. These should be left alone.
+
+The last variables is the radial boundaries of each domain. The first and second domain should cover the inner black hole,
+and the second should be in it own domain as well. There should be at least one domain between the out black hole and infinit, so that
+the gravitational waves are resolved here.
+
+
