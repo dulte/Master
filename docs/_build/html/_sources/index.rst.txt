@@ -67,6 +67,7 @@ A typical run example will be
    :maxdepth: 2
    :caption: Contents:
 
+   implementation
    modules
 
 Indices and tables
