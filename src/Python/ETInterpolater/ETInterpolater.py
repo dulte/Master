@@ -4,6 +4,9 @@ import h5py
 import subprocess
 import time
 
+import os
+import pickle
+
 from warnings import simplefilter
 # ignore all future warnings
 simplefilter(action='ignore', category=FutureWarning)
@@ -12,6 +15,8 @@ simplefilter(action='ignore', category=FutureWarning)
 from postcactus.simdir import SimDir
 from postcactus import visualize as viz
 from postcactus import grid_data as gd
+
+from scipy import ndimage
 
 
 """
@@ -29,14 +34,203 @@ TODO:
 """
 
 
+
+
+class ETQuantities(object):
+    def __init__(self, geometry, iteration, simulation_folder, quantity_names=[], pickle=True, pickle_folder=""):
+        if quantity_names == []:
+            self.quantity_names = ["alp"]#, "betax", "betay", "betaz",
+                    #"gxx", "gxy", "gxz", "gyy", "gyz", "gzz",
+                    #"kxx", "kxy", "kxz", "kyy", "kyz", "kzz"]
+        else:
+            self.quantity_names = quantity_names
+
+        self.quantities = {}
+        self.sd = SimDir(simulation_folder)
+        self.geo = geometry
+        self.iteration = iteration
+        self.pickle = pickle
+
+        self.loaded_spline = None
+
+        corner = self.geo.x1()
+        self.folder = pickle_folder
+        self.filename = "et_quantities_%d_%d_%d" %(corner[0], corner[1], corner[2])
+
+    def read(self, name):
+        start_time = time.time()
+        full_path = "%s/%s_%s" %(self.folder, name, self.filename)
+
+        if self._check_pickle(name):
+            print "[~] Pickle Found. Reading Pickle."
+            self.load_pickle(name)
+
+        else:
+            print "[~] Pickle Not Found. Reading From ET Files."
+
+            grid = self._read_quantity(name, self.geo, self.iteration)
+            self.loaded_spline = grid.spline(order=3, mode="nearest")
+
+        if self.pickle == True and not os.path.exists(full_path):
+            self.pickle_quantities(name)
+
+        print "Read All Quantities in %s seconds" %(time.time()-start_time)
+        return self.quantities
+
+
+
+
+
+    def _check_pickle(self, name):
+        full_path = "%s/%s_%s" %(self.folder, name, self.filename)
+        if not pickle:
+            return False
+        elif os.path.exists(full_path):
+            return True
+        else:
+            return False
+
+
+    def _read_quantity(self,quantity, geometry, iteration, dimentions=3, order=4):
+        """
+        Reads a Einstein Toolkit quantity from HDF5 files for a given iteration
+        and geometery. If the dimensions is 2 the xy plane is returned, if
+        3 xyz is return, else a error is raised.
+
+        Parameters
+        ----------
+        quantity : str
+            First part of the name of the HDF5 file containg that data
+        geometry : postcactus.grid_data.RegGeom
+            The geometry at which the data should be read and interpolated
+        iteration : int
+            The timestep at which the data should be read
+        dimentions : int, optional
+            The dimension of which the data should be read (default is 3)
+        order : int, optional
+            The order of the interpolation (default is 4)
+
+        Raises
+        ------
+
+        ValueError
+            If the dimensions are not 2 or 3
+        ValueError
+            If the quantity could not be read/wrong name of quantity
+
+
+        Returns
+        -------
+        postcactus.grid_data.grid
+            Function values of read data, with in the given geometry
+
+
+        """
+
+
+        if dimentions == 2:
+            try:
+                grid = self.sd.grid.xy.read(quantity, iteration, geom=geometry, order=order)
+            except:
+                raise ValueError("Quantity %s could not be read!" %quantity)
+
+        elif dimentions == 3:
+            try:
+                grid = self.sd.grid.xyz.read(quantity, iteration, geom=geometry, order=order)
+            except:
+                raise ValueError("Quantity %s could not be read!" %quantity)
+        else:
+            raise ValueError("Number of dimentions should be 2 or 3!")
+
+        print "[+] %s Successfully Read" %quantity
+        return grid
+
+    def pickle_quantities(self, name):
+        full_path = "%s/%s_%s" %(self.folder, name, self.filename)
+        if self.pickle:
+            f = open(full_path, "w")
+            pickle.dump(self.loaded_spline, f)
+
+    def load_pickle(self, name):
+        full_path = "%s/%s_%s" %(self.folder, name, self.filename)
+
+        f = open(full_path, "r")
+        self.loaded_spline = pickle.load(f)
+
+
+    def test_plot(self, quantity="alp"):
+        """
+        A simple function to test if the module is able to read and interpolate
+        a given quantity. The result of the xy plane is then plotted as a
+        pcolormesh.
+
+        Parameters
+        ----------
+        quantity : str
+            The quantity the user wants to test plot.
+
+        """
+
+        try:
+            q = self.read(quantity)
+        except:
+            raise ValueError("[-] Quantity %s not found" %quantity)
+
+        n = 300
+        end = 20
+        q_inter = np.zeros((n,n))
+        x = np.linspace(-end, end, n)
+        y = np.linspace(-end, end, n)
+
+        for i in range(n):
+            for j in range(n):
+                input = np.array([abs(x[i]), abs(y[j]),0])
+
+                q_inter[j,i] = self(input)
+
+
+        plt.pcolormesh(x,y,q_inter)
+        plt.colorbar()
+        plt.show()
+
+        plt.contour(x,y,q_inter)
+        plt.show()
+
+
+    def __call__(self, coords, output=None):
+
+
+        q = self.loaded_spline
+        if q is None:
+            raise ValueError("[-] No Quantity Loaded")
+
+        if (len(coords) != len(q.data.shape)):
+            raise ValueError('Dimension mismatch with sampling coordinates.')
+        #
+
+        ind     = [[(c - c0)/dx] for c,c0,dx in zip(coords, q.x0, q.dx)]
+        prefilt = (q.order < 2)
+        res = ndimage.map_coordinates(q.data, ind, prefilter=prefilt,
+             mode=q.mode, cval=q.outside_value, order=q.order,
+             output=output)
+        if output is None:
+            return res
+        return output
+
+
+
+
+
+
+
 class ETInterpolater:
     """
     A class used to read the 3+1 quantities simulated with Einstein Toolkit,
-    interpolate them, then use C code build around LORENE to find the collocation 
-    points needed to do a spectral transformation. It can then find the function 
+    interpolate them, then use C code build around LORENE to find the collocation
+    points needed to do a spectral transformation. It can then find the function
     vaules at these points, and call the C code to do the spectral transformation.
 
-    Most user will only need to use make_geometry/make_positive_geometry and analyse_bbh. 
+    Most user will only need to use make_geometry/make_positive_geometry and analyse_bbh.
     A typical run example will be
 
     .. code-block:: python
@@ -73,8 +267,8 @@ class ETInterpolater:
 
     def read_ET_quantity(self,quantity, geometry, iteration, dimentions=3, order=4):
         """
-        Reads a Einstein Toolkit quantity from HDF5 files for a given iteration 
-        and geometery. If the dimensions is 2 the xy plane is returned, if 
+        Reads a Einstein Toolkit quantity from HDF5 files for a given iteration
+        and geometery. If the dimensions is 2 the xy plane is returned, if
         3 xyz is return, else a error is raised.
 
         Parameters
@@ -83,22 +277,22 @@ class ETInterpolater:
             First part of the name of the HDF5 file containg that data
         geometry : postcactus.grid_data.RegGeom
             The geometry at which the data should be read and interpolated
-        iteration : int 
+        iteration : int
             The timestep at which the data should be read
-        dimentions : int, optional 
+        dimentions : int, optional
             The dimension of which the data should be read (default is 3)
-        order : int, optional 
+        order : int, optional
             The order of the interpolation (default is 4)
-        
+
         Raises
         ------
-        
+
         ValueError
             If the dimensions are not 2 or 3
-        ValueError 
+        ValueError
             If the quantity could not be read/wrong name of quantity
-        
-        
+
+
         Returns
         -------
         postcactus.grid_data.grid
@@ -140,7 +334,7 @@ class ETInterpolater:
         n_pts : int
             Number of points in the geomtery
 
-        
+
         Raises
         ------
         ValueErrror
@@ -148,12 +342,12 @@ class ETInterpolater:
 
         Returns
         -------
-        postcactus.grid_data.RegGeom    
+        postcactus.grid_data.RegGeom
             The geometry
 
 
         """
-        if len(corder) > 3 or len(corder) < 2:
+        if len(corner) > 3 or len(corner) < 2:
             raise ValueError("Wrong Number of Corners! User 2 or 3!")
 
         corner1 = [-i for i in corner]
@@ -162,19 +356,19 @@ class ETInterpolater:
 
         if len(corner) == 3:
             self.zlim = [corner1[2], corner[2]]
-        
+
         geo = gd.RegGeom([n_pts]*len(corner), corner, x1=corner1)
         print "[+] Geomentry Successfully Made"
         return geo
 
 
-    
+
 
     def make_positive_geometry(self, corner, n_pts):
         """
         Make a geometry needed to read Einstein Toolkit quantities.
-        This will make a geometry with one corner at the origin, and 
-        the other at the given corner. This is for cases where the 
+        This will make a geometry with one corner at the origin, and
+        the other at the given corner. This is for cases where the
         Einstein Toolkit simulation is done with symmetry in xyz!
 
         Parameters
@@ -184,7 +378,7 @@ class ETInterpolater:
         n_pts : int
             Number of points in the geomtery
 
-        
+
         Raises
         ------
         ValueErrror
@@ -192,13 +386,13 @@ class ETInterpolater:
 
         Returns
         -------
-        postcactus.grid_data.RegGeom    
+        postcactus.grid_data.RegGeom
             The geometry
 
 
         """
 
-        if len(corder) > 3 or len(corder) < 2:
+        if len(corner) > 3 or len(corner) < 2:
             raise ValueError("Wrong Number of Corners! User 2 or 3!")
 
         corner1 = [abs(i) for i in corner]
@@ -217,7 +411,7 @@ class ETInterpolater:
     def make_test_plot(self, quantity):
         """
         A simple function to test if the module is able to read and interpolate
-        a given quantity. The result of the xy plane is then plotted as a 
+        a given quantity. The result of the xy plane is then plotted as a
         pcolormesh.
 
         Parameters
@@ -297,7 +491,7 @@ class ETInterpolater:
         plt.show()
 
 
-    def get_values_at_coll_points(self, interpolated_quantity,smooth=True, bh_pos=[0,0,0], bh_rad=0,bh_pos2=[0,0,0], bh_rad2=0, scaling_factor=4.0, test=False):
+    def get_values_at_coll_points(self, interpolated_quantity, smooth=True, bh_pos=[0,0,0], bh_rad=0,bh_pos2=[0,0,0], bh_rad2=0, scaling_factor=4.0, test=False):
         """
         One of the main functions of the module. This function takes in a interpolation
         function of a quantity. It will then use LORENE to find the collocation points.
@@ -320,16 +514,16 @@ class ETInterpolater:
             The radius of the second BH (dafault is 0)
         scaling_factor : float, optinal
             The scaling factor used in the splitting funciton (default is 4.0)
-        test : bool, optional 
+        test : bool, optional
             If True this will make a test plot
 
         Returns
         -------
-        Dict : 
+        Dict :
             The values as a dict with the same structure as the collocation points
         List :
             A flat list of the calculated values
-
+quantities[quantity]
 
 
         """
@@ -415,7 +609,7 @@ class ETInterpolater:
         ------
         ValueError
             If tp is not x, y or z
-        
+
         Returns
         -------
         float
@@ -424,7 +618,7 @@ class ETInterpolater:
         Notes
         -----
         The infinite bounds have to be handled better. It will
-        now use the outer coordinate - 5, which is garantied 
+        now use the outer coordinate - 5, which is garantied
         to lead to discontinuities...
         """
         if coord == np.inf or coord != coord:
@@ -459,7 +653,7 @@ class ETInterpolater:
         ----------
         coord : float
             The value of the coordinate (point) that needs to be desymmeterized
-        
+
         Returns
         -------
         float
@@ -521,7 +715,7 @@ class ETInterpolater:
         Notes
         -----
         Outdated and should not be used anymore
-        
+
         """
         with open(file, "w") as f:
             for index,domain in enumerate(values):
@@ -537,8 +731,8 @@ class ETInterpolater:
 
     def write_flatten_values_to_file(self, values, it, body, file):
         """
-        Writes flatten list to file. Adds which body the user is saving, 
-        the total number of bodies and the iteration/timestep to the 
+        Writes flatten list to file. Adds which body the user is saving,
+        the total number of bodies and the iteration/timestep to the
         list before saving
 
         Parameters
@@ -551,10 +745,10 @@ class ETInterpolater:
             Which body this is.
         file : str
             Filename of the file the user wants to save to
-        
+
         """
         values = [body, self.nb_bodies, it] + values
-        with open(file, "w") as f:
+        with open(file, "w+") as f:
             for i in values:
                 print_nb = i
                 if print_nb != print_nb:
@@ -568,7 +762,7 @@ class ETInterpolater:
     def LORENE_read(self, filename, origin=[0,0,0], body=1, it=0):
         """
         Function responsible of communicating with the C code, which will read
-        the flatten array, make the spectral transformation and save the 
+        the flatten array, make the spectral transformation and save the
         Gyoto files.
 
         Parameters
@@ -594,20 +788,20 @@ class ETInterpolater:
         removed.
 
         """
-        p = subprocess.Popen("../C/get_points %s %s %s 1 %s %s" %(origin[0], origin[1], origin[2], body, it), stdout=subprocess.PIPE, shell=True)
+        p = subprocess.Popen("../../C/get_points %s %s %s 1 %s %s" %(origin[0], origin[1], origin[2], body, it), stdout=subprocess.PIPE, shell=True)
         #p = subprocess.Popen("./get_points %s %s %s 1" %(origin[0], origin[1], origin[2]), stdout=subprocess.PIPE, shell=True)
         (output, err) = p.communicate()
         p_status = p.wait()
         if p_status != 0:
             raise IOError("Could not read LORENE C code!")
         else:
-            print "[+] LORENE Successfully Read and Saved the File"
+            print "[+] LORENE Successfully Read and Saved tquantities[quantity]he File"
 
 
 
     def get_coll_points(self, origin=[0,0,0], body=1, it=0):
         """
-        Function responsible of communicating with the C code to get the 
+        Function responsible of communicating with the C code to get the
         collocation points, then make the output of the C code to three
         dicts (one for each axis).
 
@@ -638,7 +832,7 @@ class ETInterpolater:
         the user need to use.
 
         """
-        p = subprocess.Popen("../C/get_points %s %s %s 0 %s %s" %(origin[0], origin[1], origin[2], body, it), stdout=subprocess.PIPE, shell=True)
+        p = subprocess.Popen("../../C/get_points %s %s %s 0 %s %s" %(origin[0], origin[1], origin[2], body, it), stdout=subprocess.PIPE, shell=True)
         (output, err) = p.communicate()
         p_status = p.wait()
         if p_status != 0:
@@ -718,7 +912,7 @@ class ETInterpolater:
 
         Returns
         -------
-        list 
+        list
             Returns a list of dicts for the one coordinate with the collocation points
 
         """
@@ -742,13 +936,13 @@ class ETInterpolater:
 
     def get_domain_dict_from_string(self,domain_string):
         """
-        Takes a string for one domain of one coord 
+        Takes a string for one domain of one coord
         and returns the dict for that domain.
 
         Parameters
         ----------
         domain_string : str
-            A string containg the collocation points for one domain and one coord, 
+            A string containg the collocation points for one domain and one coord,
             formatted as the output from LORENE
 
         Returns
@@ -773,10 +967,10 @@ class ETInterpolater:
 
     def super_gaussian(self, x, y, z, bh_pos, rad, I=1, n=10):
         """
-        Function used to suppress regions of the function grid. 
+        Function used to suppress regions of the function grid.
 
         Parameters
-        ----------
+        ----------quantities[quantity]
         x : float
             The x coordinate
         y : float
@@ -852,7 +1046,7 @@ class ETInterpolater:
         Returns
         -------
         np.array, np.array([[list, list, list], [list, list, list]]), np.array([list, list])
-            First all the iterations save are returns. Secondly an array with the posision 
+            First all the iterations save are returns. Secondly an array with the posision
             of the two BHs over time. Lastly the an array with the radii of the BHs
             over time.
         """
@@ -871,11 +1065,11 @@ class ETInterpolater:
 
 
 
-    def analyse_bbh(self, geometry, quantity, iterations, test=False, split=True, scaling_factor=4.0):
+    def analyse_bbh(self, geometry, ETquantities, iterations, do_gyoto_converstion=True, quantities=[], test=False, split=True, scaling_factor=4.0):
         """
         The main function of the code. This will read and interpolate all quantities,
         get the collocation points from the C code, clean it up,
-        find the function values at these points, apply the splitting function 
+        find the function values at these points, apply the splitting function
         and make the C code do the spectral transfomation.
 
         Parameters
@@ -895,7 +1089,7 @@ class ETInterpolater:
             the splitting factor will be used (default is 4.0)
 
 
-        
+
         Notes
         -----
 
@@ -906,9 +1100,11 @@ class ETInterpolater:
         if self.nb_bodies > 1:
             possible_iterations, positions, radii = self.read_bbh_diag()
 
-        quantites = ["alp", "betax", "betay", "betaz",
-                "gxx", "gxy", "gxz", "gyy", "gyz", "gzz",
-                "kxx", "kxy", "kxz", "kyy", "kyz", "kzz"]
+        if quantities == []:
+            quantities = ["alp", "betax", "betay", "betaz",
+                    "gxx", "gxy", "gxz", "gyy", "gyz", "gzz",
+                    "kxx", "kxy", "kxz", "kyy", "kyz", "kzz"]
+
 
 
         split = False if self.nb_bodies == 1 else split
@@ -937,17 +1133,20 @@ class ETInterpolater:
 
 
             if test:
+                """
                 if self.nb_bodies == 1:
                     self.make_test_plot("alp")
                 elif self.nb_bodies == 2:
                     self.make_test_bbh_plot("gxx", pos2, pos1, radius2, radius1)
+                """
+                ETquantities.test_plot()
 
 
 
-
-            for quantity in quantites:
+            for quantity in quantities:
                 print "[~] Starting with Quantity %s" %quantity
-                q = self.read_ET_quantity(quantity, g, it, dimentions=3, order=4)
+                ETquantities.read(quantity)
+                q = ETquantities#self.read_ET_quantity(quantity, g, it, dimentions=3, order=4)
 
                 print "[+] Quantity Successfully Read from ET File"
                 #BH1
@@ -955,7 +1154,7 @@ class ETInterpolater:
 
 
                 values, flatten_values = self.get_values_at_coll_points(q,smooth=split, bh_pos=pos1, bh_rad=radius1,bh_pos2=pos2, bh_rad2=radius2, scaling_factor=scaling_factor)
-                filename = "../Python/%s_%s_body1.txt" %(quantity, it)
+                filename = "%s_%s_body1.txt" %(quantity, it)
                 self.write_flatten_values_to_file(flatten_values, it, 1, filename)
 
 
@@ -964,18 +1163,18 @@ class ETInterpolater:
                     print "[~] Now Black Hole 2"
 
                     values, flatten_values = self.get_values_at_coll_points(q,smooth=split, bh_pos=pos2, bh_rad=radius2,bh_pos2=pos1, bh_rad2=radius1, scaling_factor=scaling_factor)
-                    filename = "../Python/%s_%s_body2.txt" %(quantity, it)
+                    filename = "%s_%s_body2.txt" %(quantity, it)
                     self.write_flatten_values_to_file(flatten_values, it, 2, filename)
 
                 print "\n INFO: Time used: %.3f min.\n\n" %((time.time()- start_time)/60.)
 
-
-            print "[~] LORENE is Writing BH1 to GYOTO File"
-            self.LORENE_read(filename, body=1, origin=pos1, it=it)
-
-            if self.nb_bodies > 1:
+            if do_gyoto_converstion:
                 print "[~] LORENE is Writing BH1 to GYOTO File"
-                self.LORENE_read(filename, body=2, origin=pos2, it=it)
+                self.LORENE_read(filename, body=1, origin=pos1, it=it)
+
+                if self.nb_bodies > 1:
+                    print "[~] LORENE is Writing BH1 to GYOTO File"
+                    self.LORENE_read(filename, body=2, origin=pos2, it=it)
 
             print "[+] Done with Iteration %s in %.3f min. \n" %(it, (time.time()- start_time)/60.)
 
@@ -994,14 +1193,22 @@ if __name__=="__main__":
     folder = "/mn/stornext/d13/euclid/daniehei/simulations/bbh_3D"
     #folder = "/mn/stornext/d13/euclid/daniehei/simulations/tov_3D"
 
-    quantity = "kxx"
+    pickle_folder = "/mn/stornext/d13/euclid/daniehei/ETConverter/spline_pickles"
+
+    quantity = "alp"
     filename = "%s.txt" %quantity
     inter = ETInterpolater(folder, 2)
     #g = inter.make_geometry([-50, -50, -50], 400)
-    g = inter.make_positive_geometry([100, 100, 100], 200)
+    g = inter.make_positive_geometry([-20,-20, -20], 400)
     it = 0
 
-    inter.analyse_bbh(g, quantity, [it], test=False)
+
+    et_q = ETQuantities(g, it, folder, pickle_folder=pickle_folder, pickle=False)
+    #et_q.read_all()
+    #et_q.read("betax")
+    et_q.test_plot("kxy")
+    exit()
+    inter.analyse_bbh(g, et_q, [it], quantities=["alp"], test=False)
 
     #q = inter.read_ET_quantity(quantity, g, it, dimentions=3, order=4)
 
