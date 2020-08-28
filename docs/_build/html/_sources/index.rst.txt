@@ -8,10 +8,15 @@ Welcome to Einstein Toolkit Converter's documentation!
 
 Introduction
 ============
-This is a converter tool that converts Binary Black Hole Mergers simulated in Einstein Toolkit
-to a Spectral Representation used in Gyoto to do numerical raytracing.
+This is a converter tool that converts Binary Black Hole Mergers simulated in `Einstein Toolkit`_
+to a Spectral Representation used in Gyoto_ to do numerical raytracing.
 
-This is part of my Master Thesis in Astrophysics at The University of Oslo.
+.. _Gyoto: https://gyoto.obspm.fr/
+.. _Einstein Toolkit: https://einsteintoolkit.org/
+
+This is part of my Master Thesis in `Astrophysics at The University of Oslo`_.
+
+.. _Astrophysics at The University of Oslo: https://www.mn.uio.no/astro/english/
 
 The code is as of now not available, but can be distributed on request. The reason
 is that it is still written, and that it is very ugly and ad hoc...
