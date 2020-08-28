@@ -45,9 +45,9 @@ class ETInterpolater:
         inter = ETInterpolater(folder, 2)
 
         g = inter.make_positive_geometry([100, 100, 100], 200)
-        it = 0
+        it = [0, 128, 256] #And more
 
-        inter.analyse_bbh(g, quantity="", [it], test=False)
+        inter.analyse_bbh(g, quantity="", it, test=True)
     """
 
     def __init__(self, dir, nb_bodies=2):
