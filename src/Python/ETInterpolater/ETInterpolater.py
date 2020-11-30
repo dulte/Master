@@ -35,6 +35,88 @@ TODO:
 
 
 
+class ParameterReader:
+    
+    def __init__(self, file_name):
+        self.parameters = {
+            "time": 0,
+            "simulation_folder": "",
+            "result_folder": "",
+            "geometry_type": "positiv",
+            "geometry_size": 20,
+            "geometry_resolution": 400,
+            "dz": 1,
+            "nr": [0],
+            "nt": [0],
+            "np": [0],
+            "it": [0],
+            "pickle": 0,
+            "pickle_folder": "",
+        }
+        self.file_name = file_name
+        self._read_file()
+
+
+    def _read_file(self):
+        read_parameters = {}
+        with open(self.file_name) as f:
+            for line in f:
+                words = line.split(":")
+                if len(words) != 2:
+                    raise ValueError("The line %s is not correctly formatted" %line)
+                else:
+                    read_parameters[words[0].strip()] = words[1].strip()
+
+        self._evaluate_parameters(read_parameters)
+
+
+
+    def _evaluate_parameters(self, read_parameters):
+        for key in read_parameters.keys():
+            if key in self.parameters.keys():
+
+                if type(eval(read_parameters[key])) == type(self.parameters[key]):
+                    self.parameters[key] = eval(read_parameters[key])
+                else:
+                    raise ValueError("For the parameter %s, the type %s did not match the expected %s" 
+                        %(key, type(eval(read_parameters[key])), type(self.parameters[key])))
+
+        self._give_warnings(read_parameters)    
+        
+
+    def _give_warnings(self, read_parameters):
+        for p in self.parameters.keys():
+            if p not in read_parameters.keys():
+                if p in ["np", "nt", "nr", "dz"]:
+                    raise ValueError("%s is not found. This must be given" %p)
+                elif p == "time":
+                    continue
+
+                print "[~] %s not given, running with default value %s"%(p,self.parameters[p])
+
+        if self.parameters["pickle_folder"] == "" and self.parameters["pickle"]:
+            _ = raw_input("[~] Pickle is True, but no folder is given for pickling. This means that the pickles are saved here. Press any key to continue...")
+        
+
+        
+        if len(self.parameters["nr"]) != self.parameters["dz"]:
+            raise ValueError("nr does not have a length (%s) of dz (%s)"
+                %(len(self.parameters["nr"]), self.parameters["dz"]))
+        if len(self.parameters["np"]) != self.parameters["dz"]:
+            raise ValueError("np does not have a length (%s) of dz (%s)"
+                %(len(self.parameters["np"]), self.parameters["dz"]))
+        if len(self.parameters["nt"]) != self.parameters["dz"]:
+            raise ValueError("nt does not have a length (%s) of dz (%s)"
+                %(len(self.parameters["nt"]), self.parameters["dz"]))
+
+    
+    def setup_enviroment(self):
+        pass
+
+
+
+
+
 
 class ETQuantities(object):
     def __init__(self, geometry, iteration, simulation_folder, quantity_names=[], pickle=True, pickle_folder=""):
@@ -1195,6 +1277,11 @@ if __name__=="__main__":
 
     pickle_folder = "/mn/stornext/d13/euclid/daniehei/ETConverter/spline_pickles"
 
+    pr = ParameterReader("parameters.txt")
+    
+    exit()
+
+    
     quantity = "alp"
     filename = "%s.txt" %quantity
     inter = ETInterpolater(folder, 2)
