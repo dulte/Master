@@ -40,6 +40,7 @@ class ParameterReader:
     def __init__(self, file_name):
         self.parameters = {
             "time": 0,
+            "c_path": "",
             "simulation_folder": "",
             "result_folder": "",
             "geometry_type": "positiv",
@@ -61,6 +62,8 @@ class ParameterReader:
         read_parameters = {}
         with open(self.file_name) as f:
             for line in f:
+                if line == "\n":
+                    continue
                 words = line.split(":")
                 if len(words) != 2:
                     raise ValueError("The line %s is not correctly formatted" %line)
