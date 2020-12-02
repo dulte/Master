@@ -184,12 +184,14 @@ class Runner:
         it = setup.parameters["it"]
         geometry_corner = setup.parameters["geometry_size"]
         geometry_res = setup.parameters["geometry_resolution"]
+        c_path = setup.parameters["c_path"]
+        result_path = setup.parameters["result_path"]
 
         inter = ETInterpolater(folder, setup.parameters["interpolation"])
         g = inter.make_positive_geometry([-geometry_corner]*3, geometry_res)
         et_q = ETQuantities(g, it, folder, pickle_folder=pickle_folder, pickle=pickle)
         
-        inter.analyse_bbh(g, et_q, it, quantities=quantites, test=False)
+        inter.analyse_bbh(g, et_q, it, result_path=result_path,c_path=c_path, quantities=quantites, test=False)
     
     def _continue(self):
         pass
