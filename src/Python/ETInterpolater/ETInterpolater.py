@@ -764,7 +764,7 @@ quantities[quantity]
         #np.savetxt(file, np.array(values))
 
 
-    def LORENE_read(self, filename, origin=[0,0,0], body=1, it=0):
+    def LORENE_read(self, filename, c_path="../../C/" origin=[0,0,0], body=1, it=0):
         """
         Function responsible of communicating with the C code, which will read
         the flatten array, make the spectral transformation and save the
@@ -793,7 +793,7 @@ quantities[quantity]
         removed.
 
         """
-        p = subprocess.Popen("../../C/get_points %s %s %s 1 %s %s" %(origin[0], origin[1], origin[2], body, it), stdout=subprocess.PIPE, shell=True)
+        p = subprocess.Popen("%s/get_points %s %s %s 1 %s %s" %(c_path,origin[0], origin[1], origin[2], body, it), stdout=subprocess.PIPE, shell=True)
         #p = subprocess.Popen("./get_points %s %s %s 1" %(origin[0], origin[1], origin[2]), stdout=subprocess.PIPE, shell=True)
         (output, err) = p.communicate()
         p_status = p.wait()
@@ -804,7 +804,7 @@ quantities[quantity]
 
 
 
-    def get_coll_points(self, origin=[0,0,0], body=1, it=0):
+    def get_coll_points(self,c_path="../../C/" origin=[0,0,0], body=1, it=0):
         """
         Function responsible of communicating with the C code to get the
         collocation points, then make the output of the C code to three
@@ -837,7 +837,7 @@ quantities[quantity]
         the user need to use.
 
         """
-        p = subprocess.Popen("../../C/get_points %s %s %s 0 %s %s" %(origin[0], origin[1], origin[2], body, it), stdout=subprocess.PIPE, shell=True)
+        p = subprocess.Popen("%s/get_points %s %s %s 0 %s %s" %(c_path,origin[0], origin[1], origin[2], body, it), stdout=subprocess.PIPE, shell=True)
         (output, err) = p.communicate()
         p_status = p.wait()
         if p_status != 0:
@@ -1070,7 +1070,7 @@ quantities[quantity]
 
 
 
-    def analyse_bbh(self, geometry, ETquantities, iterations, do_gyoto_converstion=True, quantities=[], test=False, split=True, scaling_factor=4.0):
+    def analyse_bbh(self, geometry, ETquantities, iterations, c_path="../../C/", do_gyoto_converstion=True, quantities=[], test=False, split=True, scaling_factor=4.0):
         """
         The main function of the code. This will read and interpolate all quantities,
         get the collocation points from the C code, clean it up,
@@ -1158,7 +1158,7 @@ quantities[quantity]
                 print "[~] Starting with Black Hole 1"
 
 
-                values, flatten_values = self.get_values_at_coll_points(q,smooth=split, bh_pos=pos1, bh_rad=radius1,bh_pos2=pos2, bh_rad2=radius2, scaling_factor=scaling_factor)
+                values, flatten_values = self.get_values_at_coll_points(q,c_path=c_path,smooth=split, bh_pos=pos1, bh_rad=radius1,bh_pos2=pos2, bh_rad2=radius2, scaling_factor=scaling_factor)
                 filename = "%s_%s_body1.txt" %(quantity, it)
                 self.write_flatten_values_to_file(flatten_values, it, 1, filename)
 
@@ -1167,7 +1167,7 @@ quantities[quantity]
                 if self.nb_bodies > 1:
                     print "[~] Now Black Hole 2"
 
-                    values, flatten_values = self.get_values_at_coll_points(q,smooth=split, bh_pos=pos2, bh_rad=radius2,bh_pos2=pos1, bh_rad2=radius1, scaling_factor=scaling_factor)
+                    values, flatten_values = self.get_values_at_coll_points(q,c_path=c_path,smooth=split, bh_pos=pos2, bh_rad=radius2,bh_pos2=pos1, bh_rad2=radius1, scaling_factor=scaling_factor)
                     filename = "%s_%s_body2.txt" %(quantity, it)
                     self.write_flatten_values_to_file(flatten_values, it, 2, filename)
 
@@ -1175,11 +1175,11 @@ quantities[quantity]
 
             if do_gyoto_converstion:
                 print "[~] LORENE is Writing BH1 to GYOTO File"
-                self.LORENE_read(filename, body=1, origin=pos1, it=it)
+                self.LORENE_read(filename, c_path=c_path, body=1, origin=pos1, it=it)
 
                 if self.nb_bodies > 1:
                     print "[~] LORENE is Writing BH1 to GYOTO File"
-                    self.LORENE_read(filename, body=2, origin=pos2, it=it)
+                    self.LORENE_read(filename, c_path=c_path, body=2, origin=pos2, it=it)
 
             print "[+] Done with Iteration %s in %.3f min. \n" %(it, (time.time()- start_time)/60.)
 
