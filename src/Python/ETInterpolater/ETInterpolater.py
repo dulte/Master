@@ -1070,7 +1070,7 @@ quantities[quantity]
 
 
 
-    def analyse_bbh(self, geometry, ETquantities, iterations, c_path="../../C/", do_gyoto_converstion=True, quantities=[], test=False, split=True, scaling_factor=4.0):
+    def analyse_bbh(self, geometry, ETquantities, iterations, c_path="../../C/", result_path="", do_gyoto_converstion=True, quantities=[], test=False, split=True, scaling_factor=4.0):
         """
         The main function of the code. This will read and interpolate all quantities,
         get the collocation points from the C code, clean it up,
@@ -1159,7 +1159,7 @@ quantities[quantity]
 
 
                 values, flatten_values = self.get_values_at_coll_points(q,c_path=c_path,smooth=split, bh_pos=pos1, bh_rad=radius1,bh_pos2=pos2, bh_rad2=radius2, scaling_factor=scaling_factor)
-                filename = "%s_%s_body1.txt" %(quantity, it)
+                filename = "%s/%s_%s_body1.txt" %(result_path,quantity, it)
                 self.write_flatten_values_to_file(flatten_values, it, 1, filename)
 
 
@@ -1168,7 +1168,7 @@ quantities[quantity]
                     print "[~] Now Black Hole 2"
 
                     values, flatten_values = self.get_values_at_coll_points(q,c_path=c_path,smooth=split, bh_pos=pos2, bh_rad=radius2,bh_pos2=pos1, bh_rad2=radius1, scaling_factor=scaling_factor)
-                    filename = "%s_%s_body2.txt" %(quantity, it)
+                    filename = "%s/%s_%s_body2.txt" %(result_path,quantity, it)
                     self.write_flatten_values_to_file(flatten_values, it, 2, filename)
 
                 print "\n INFO: Time used: %.3f min.\n\n" %((time.time()- start_time)/60.)
