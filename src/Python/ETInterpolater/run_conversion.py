@@ -35,7 +35,7 @@ class ParameterReader:
             "result_folder": "",
             "geometry_type": "positiv",
             "geometry_size": 20,
-            "geometry_resolution": 400,
+            "geometry_resolution": 50,
             "dz": 1,
             "nr": [0],
             "nt": [0],
@@ -113,13 +113,16 @@ class ParameterReader:
 
 class Setup:
     def __init__(self, file_name):
+        print "[~] Reading Parameters"
         self.p_object = ParameterReader(file_name)
         self.parameters = self.p_object.parameters
         self.datetime = datetime.datetime.now()
         self.parameters["time"] = str(self.datetime)
         self.folder = self.parameters["result_folder"] + "/results_%s" %self.datetime.strftime("%d_%m_%y_%H.%M.%S")
+        print "[+] Reading Parameters Done"
         
     def create_setup(self):
+        print "[~] Setting up enviroment"
         if not os.path.isdir(self.folder):
             os.mkdir(self.folder)
         else:
@@ -140,6 +143,8 @@ class Setup:
             copy(from_c_path, self.folder+"/")
         except:
             raise ValueError("get_points not found at: %s" %from_c_path)
+
+        print "[+] Setting up enviroment done"
         
     
     def create_parameterfile(self):
@@ -185,11 +190,11 @@ class Runner:
         geometry_corner = setup.parameters["geometry_size"]
         geometry_res = setup.parameters["geometry_resolution"]
         c_path = setup.parameters["c_path"]
-        result_path = setup.parameters["result_path"]
+        result_path = setup.folder
 
         inter = ETInterpolater(folder, setup.parameters["interpolation"])
         g = inter.make_positive_geometry([-geometry_corner]*3, geometry_res)
-        et_q = ETQuantities(g, it, folder, pickle_folder=pickle_folder, pickle=pickle)
+        et_q = ETQuantities(g, it[0], folder, pickle_folder=pickle_folder, pickle=pickle)
         
         inter.analyse_bbh(g, et_q, it, result_path=result_path,c_path=c_path, quantities=quantites, test=False)
     
