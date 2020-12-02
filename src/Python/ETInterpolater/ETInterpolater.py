@@ -193,7 +193,7 @@ class ETQuantities(object):
         plt.colorbar()
         plt.show()
 
-        plt.contour(x,y,q_inter)
+        plt.contour(x,y,q_inter, 20)
         plt.show()
 
 
@@ -1191,22 +1191,25 @@ if __name__=="__main__":
     #folder = "/media/dulte/Seagate Expansion Drive/Storage/Master/ET_data/GW150914_28"
     #folder = "/media/dulte/Seagate Expansion Drive/Storage/Master/ET_data/tov_ET_11"
     folder = "/mn/stornext/d13/euclid/daniehei/simulations/bbh_3D"
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/bbh"
     #folder = "/mn/stornext/d13/euclid/daniehei/simulations/tov_3D"
 
     pickle_folder = "/mn/stornext/d13/euclid/daniehei/ETConverter/spline_pickles"
 
-    quantity = "alp"
+    quantity = "betax"
     filename = "%s.txt" %quantity
     inter = ETInterpolater(folder, 2)
     #g = inter.make_geometry([-50, -50, -50], 400)
-    g = inter.make_positive_geometry([-20,-20, -20], 400)
+    #g = inter.make_positive_geometry([-20,-20, -20], 400)
+    g = inter.make_positive_geometry([-25,-25, -25], 400)
     it = 0
 
 
     et_q = ETQuantities(g, it, folder, pickle_folder=pickle_folder, pickle=False)
     #et_q.read_all()
-    #et_q.read("betax")
-    et_q.test_plot("kxy")
+    #et_q.read("gxx")
+    et_q.test_plot("gxx")
+    et_q.test_plot("gyy")
     exit()
     inter.analyse_bbh(g, et_q, [it], quantities=["alp"], test=False)
 
