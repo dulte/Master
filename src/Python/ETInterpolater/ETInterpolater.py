@@ -198,7 +198,7 @@ class ETQuantities(object):
         plt.colorbar()
         plt.show()
 
-        plt.contour(x,y,q_inter)
+        plt.contour(x,y,q_inter, 20)
         plt.show()
 
 
@@ -496,7 +496,7 @@ class ETInterpolater:
         plt.show()
 
 
-    def get_values_at_coll_points(self, interpolated_quantity, smooth=True, bh_pos=[0,0,0], bh_rad=0,bh_pos2=[0,0,0], bh_rad2=0, scaling_factor=4.0, test=False):
+    def get_values_at_coll_points(self, interpolated_quantity, c_path="../../C/", smooth=True, bh_pos=[0,0,0], bh_rad=0,bh_pos2=[0,0,0], bh_rad2=0, scaling_factor=4.0, test=False):
         """
         One of the main functions of the module. This function takes in a interpolation
         function of a quantity. It will then use LORENE to find the collocation points.
@@ -534,7 +534,7 @@ quantities[quantity]
         """
         q = interpolated_quantity
 
-        xx, yy, zz = self.get_coll_points(bh_pos)
+        xx, yy, zz = self.get_coll_points(origin=bh_pos, c_path=c_path)
 
         bbh_distance = np.linalg.norm(bh_pos-bh_pos2)
 
@@ -764,7 +764,7 @@ quantities[quantity]
         #np.savetxt(file, np.array(values))
 
 
-    def LORENE_read(self, filename, c_path="../../C/" origin=[0,0,0], body=1, it=0):
+    def LORENE_read(self, filename, c_path="../../C/", origin=[0,0,0], body=1, it=0):
         """
         Function responsible of communicating with the C code, which will read
         the flatten array, make the spectral transformation and save the
@@ -804,7 +804,7 @@ quantities[quantity]
 
 
 
-    def get_coll_points(self,c_path="../../C/" origin=[0,0,0], body=1, it=0):
+    def get_coll_points(self,c_path="../../C/", origin=[0,0,0], body=1, it=0):
         """
         Function responsible of communicating with the C code to get the
         collocation points, then make the output of the C code to three
@@ -841,7 +841,7 @@ quantities[quantity]
         (output, err) = p.communicate()
         p_status = p.wait()
         if p_status != 0:
-            raise IOError("Could not read LORENE C code!")
+            raise IOError("Could not read LORENE C code! %s" %err)
         else:
             print "[+] LORENE Successfully Gave the Coll Points"
 
@@ -1070,7 +1070,7 @@ quantities[quantity]
 
 
 
-    def analyse_bbh(self, geometry, ETquantities, iterations, c_path="../../C/", result_path="", do_gyoto_converstion=True, quantities=[], test=False, split=True, scaling_factor=4.0):
+    def analyse_bbh(self, geometry, ETquantities, iterations, c_path="../../C/", result_path="./", do_gyoto_converstion=True, quantities=[], test=False, split=True, scaling_factor=4.0):
         """
         The main function of the code. This will read and interpolate all quantities,
         get the collocation points from the C code, clean it up,
@@ -1196,29 +1196,29 @@ if __name__=="__main__":
     #folder = "/media/dulte/Seagate Expansion Drive/Storage/Master/ET_data/GW150914_28"
     #folder = "/media/dulte/Seagate Expansion Drive/Storage/Master/ET_data/tov_ET_11"
     folder = "/mn/stornext/d13/euclid/daniehei/simulations/bbh_3D"
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/bbh"
     #folder = "/mn/stornext/d13/euclid/daniehei/simulations/tov_3D"
 
     pickle_folder = "/mn/stornext/d13/euclid/daniehei/ETConverter/spline_pickles"
 
-    
-    
-    
-
-    
-    quantity = "alp"
+    quantity = "betax"
     filename = "%s.txt" %quantity
     inter = ETInterpolater(folder, 2)
+
     #g = inter.make_geometry([-50, -50, -50], 400)
-    g = inter.make_positive_geometry([-20,-20, -20], 400)
+    #g = inter.make_positive_geometry([-20,-20, -20], 400)
+    g = inter.make_positive_geometry([-25,-25, -25], 50)
     it = 0
 
 
     et_q = ETQuantities(g, it, folder, pickle_folder=pickle_folder, pickle=False)
     #et_q.read_all()
-    #et_q.read("betax")
-    et_q.test_plot("kxy")
-    exit()
+    #et_q.read("gxx")
+    #et_q.test_plot("gxx")
+    #et_q.test_plot("gyy")
+    #exit()
     inter.analyse_bbh(g, et_q, [it], quantities=["alp"], test=False)
+    exit()
 
     #q = inter.read_ET_quantity(quantity, g, it, dimentions=3, order=4)
 

@@ -8,11 +8,14 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 folder = "/mn/stornext/d13/euclid/daniehei/simulations/bbh_3D"
+#pickle_folder = "/mn/stornext/d13/euclid/daniehei/ETConverter/spline_pickles/smallTest"
 pickle_folder = "/mn/stornext/d13/euclid/daniehei/ETConverter/spline_pickles"
 
-quantities = ["gxy", "gxx", "kxx", "kxy"]#["alp", "betax", "betay", "betaz"]#,
-#        "gxx", "gxy", "gxz", "gyy", "gyz", "gzz",
-#        "kxx", "kxy", "kxz", "kyy", "kyz", "kzz"]
+#quantities = ["gxx", "gyy"]
+
+quantities = ["alp", "betax", "betay", "betaz",
+        "gxx", "gxy", "gxz", "gyy", "gyz", "gzz",
+        "kxx", "kxy", "kxz", "kyy", "kyz", "kzz"]
 
 
 it = 0
@@ -38,9 +41,9 @@ print rank, rank_quantities
 sleep(3)
 
 inter = ETInterpolater(folder, 2)
-g = inter.make_positive_geometry([-20,-20, -20], 400)
+g = inter.make_positive_geometry([-25,-25, -25], 400)
 
-et_q = ETQuantities(g, it, folder, pickle_folder=pickle_folder)
+et_q = ETQuantities(g, it, folder, pickle_folder=pickle_folder, pickle=False)
 
 
 inter.analyse_bbh(g, et_q, [it],quantities=rank_quantities, test=False, do_gyoto_converstion=False)

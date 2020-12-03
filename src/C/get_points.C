@@ -103,11 +103,15 @@ int main(int argc, char **argv) {
     int nt = 11 ; 	// Number of collocation points in theta in each domain
     int np = 42 ; 	// Number of collocation points in phi in each domain
 
+    int nr_array[]  = {135, 135, 135, 135, 135, 67, 57};
+    int nt_array[]  = {51, 51, 51, 51, 51, 51, 31};
+    int np_array[]  = {142, 142, 142, 142, 122, 102, 62};
+
+    /*
     int nr_array[]  = {55, 55, 55, 85, 17, 11};
     int nt_array[]  = {11, 11, 11, 11, 11, 11};
     int np_array[]  = {52, 72, 72, 82, 42, 42};
     */
-
 
 
     // int size = nz*nr*np*nt
@@ -389,7 +393,7 @@ double readdata(double *values, int l, int k, int j, int i, int nz, int *nr, int
 
 double *get_flatten_values(int size, char* filename){
 
-    const int max_size = 2048*128;
+    const int max_size = 2048*128*64;
 
     FILE *myFile;
     //myFile = fopen("flatten.txt", "r");
