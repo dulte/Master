@@ -2,6 +2,8 @@ dz : 5
 nr : [4, 6, 7, 3, 11]
 np : [4, 6, 7, 3, 11]
 nt : [4, 6, 7, 3, 11]
-pickle: 1
+pickle: 0
 c_path: "../../C"
-result_folder: ""
+result_folder: "./"
+simulation_folder: "/mn/stornext/d13/euclid/daniehei/simulations/bbh_3D"
+pickle_folder: "/mn/stornext/d13/euclid/daniehei/ETConverter/spline_pickles"
