@@ -1,7 +1,9 @@
-dz : 5
+nz : 5
 nr : [4, 6, 7, 3, 11]
 np : [4, 6, 7, 3, 11]
 nt : [4, 6, 7, 3, 11]
+r_limits: [0., 0.5, 1.5, 4, 8, 20]
 pickle: 1
 c_path: "../../C"
-result_folder: ""
+result_folder: "./"
+interpolation: 2

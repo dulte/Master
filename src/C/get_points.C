@@ -37,18 +37,76 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+
+
+
+    // Reads from parameterfile
+    FILE* fp = fopen("lorene_parameters.txt", "r");
+    int line = 0;
+    char buf[255];
+    
+    int nz;
+
+    if (fgets(buf, sizeof(buf), fp) != NULL){
+        nz = atoi(buf);
+        cout << nz << endl;
+    }
+
+
+    int nr_array[nz];
+    int nt_array[nz];
+    int np_array[nz];
+    int type_r[nz];
+    double r_limits[nz+2];
+
+    double temp_holder[nz*4+2];
+    int temp_countr = 0;
+
+    while( fgets(buf, sizeof(buf), fp) != NULL){
+        char *tolken = strtok(buf, "\n"); 
+        //cout << tolken << endl;
+        char *token = strtok(tolken, " ");
+        while(token != NULL){
+            temp_holder[temp_countr++] = atof(token);
+            token = strtok(NULL, " ");
+        }
+    }
+
+    for(int i = 0; i<nz; i++){
+        nr_array[i] = temp_holder[i];
+    }
+    for(int i = 0; i<nz; i++){
+        nt_array[i] = temp_holder[nz+i];
+    }
+    for(int i = 0; i<nz; i++){
+        np_array[i] = temp_holder[2*nz+i];
+    }
+
+    for(int i = 0; i<nz+2; i++){
+        r_limits[i] = temp_holder[3*nz+i];
+    }
+
+    r_limits[nz+1] = __infinity;
+
+    type_r[0] = RARE;
+    type_r[nz-1] = UNSURR;
+    for(int i = 1; i < nz-1; i++){
+        type_r[i] = FIN;
+    }
+
+
     // Setup of a multi-domain grid (Lorene class Mg3d)
     // ------------------------------------------------
-    int nz = 6 ; 	// Number of domains
+    // nz = 6 ; 	// Number of domains
     /*
     int nr = 25; 	// Number of collocation points in r in each domain
     int nt = 11 ; 	// Number of collocation points in theta in each domain
     int np = 42 ; 	// Number of collocation points in phi in each domain
-    */
 
     int nr_array[]  = {55, 55, 55, 85, 17, 11};
     int nt_array[]  = {11, 11, 11, 11, 11, 11};
     int np_array[]  = {52, 72, 72, 82, 42, 42};
+    */
 
 
 
@@ -62,7 +120,7 @@ int main(int argc, char **argv) {
 
 
 
-    int type_r[] = {RARE, FIN, FIN, FIN, FIN, UNSURR};
+    //int type_r[] = {RARE, FIN, FIN, FIN, FIN, UNSURR};
     int symmetry_theta = SYM ; // symmetry with respect to the equatorial plane
     int symmetry_phi = NONSYM ; // no symmetry in phi
     bool compact = true ; // external domain is compactified
@@ -79,7 +137,15 @@ int main(int argc, char **argv) {
     // --------------------------------------------------------------------------
 
     // radial boundaries of each domain:
-    double r_limits[] = {0., 0.5, 1.5, 4, 8, 20, __infinity} ;
+    //double r_limits[] = {0., 0.5, 1.5, 4, 8, 20, __infinity} ;
+
+
+
+
+
+
+
+
 
     Map_af map(mgrid, r_limits) ;   // Mapping construction
 
@@ -259,10 +325,10 @@ int main(int argc, char **argv) {
 
         // Plotting for testing
 
-        //double rmax=4;
-        //des_meridian(N, 0, rmax, "N", 1) ;
-        //des_coupe_z(N, 0., 2, "Lapse") ;
-        //arrete() ;
+        double rmax=4;
+        des_meridian(N, 0, rmax, "N", 1) ;
+        des_coupe_z(N, 0., 4, "Lapse") ;
+        arrete() ;
 
 
         // Saves to Gyoto Readable File
