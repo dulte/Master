@@ -20,17 +20,18 @@
 
 #define PI 3.141592654
 
+using namespace Lorene ;
 
 /*
-TODO:
-    - Use get_bvect_cart() since this is read as cartesian!
-      Then use change_triad(map.get_bvect_spher())
+    This program generates the lapse function from the data produced by the python
+    conversion code. The resulting LORENE scalar function is the same as would be
+    saved in the GYOTO file. From about line 150 examples are given as to how to read
+    the data from the scalar function given an r, phi and theta. 
 
 */
 
 
 
-using namespace Lorene ;
 double * get_flatten_values(int size, char*);
 double readdata(double *values, int l, int k, int j, int i, int nz, int nr, int nt, int np);
 double readdata(double *values, int l, int k, int j, int i, int nz, int *nr, int *nt, int *np);
@@ -38,22 +39,25 @@ double *read_from_file(int size, char* name, int body, int it);
 
 int main(int argc, char **argv) {
 
-    // Setup of a multi-domain grid (Lorene class Mg3d)
-    // ------------------------------------------------
-    int nz = 6 ; 	// Number of domains
     /*
-    int nr = 25; 	// Number of collocation points in r in each domain
-    int nt = 11 ; 	// Number of collocation points in theta in each domain
-    int np = 42 ; 	// Number of collocation points in phi in each domain
+        Setup and reading of the files from the python conversion.
+        Also shows a bit of how the LORENE objects are created
     */
 
-    int nr_array[]  = {135, 135, 135, 135, 67, 57};
-    int nt_array[]  = {51, 51, 51, 51, 51, 31};
-    int np_array[]  = {142, 142, 142, 122, 102, 62};
+    // Setup of a multi-domain grid (Lorene class Mg3d)
+    // ------------------------------------------------
+    int nz = 7 ; 	// Number of domains
+    /*
+    int nr_array[]  = {55, 55, 55, 85, 17, 11};
+    int nt_array[]  = {11, 11, 11, 11, 11, 11};
+    int np_array[]  = {52, 72, 72, 82, 42, 42};
+    */
 
+    int nr_array[]  = {135, 135, 135, 135, 135, 67, 57};
+    int nt_array[]  = {51, 51, 51, 51, 51, 51, 31};
+    int np_array[]  = {142, 142, 142, 142, 122, 102, 62};
 
-
-    // int size = nz*nr*np*nt
+    // Gets the size of file written by the python program
     int size = 0;
 
 
@@ -63,7 +67,7 @@ int main(int argc, char **argv) {
 
 
 
-    int type_r[] = {RARE, FIN, FIN, FIN, FIN, UNSURR};
+    int type_r[] = {RARE, FIN, FIN, FIN, FIN, FIN, UNSURR};
     int symmetry_theta = SYM ; // symmetry with respect to the equatorial plane
     int symmetry_phi = NONSYM ; // no symmetry in phi
     bool compact = true ; // external domain is compactified
@@ -80,7 +84,8 @@ int main(int argc, char **argv) {
     // --------------------------------------------------------------------------
 
     // radial boundaries of each domain:
-    double r_limits[] = {0., 0.5, 1.5, 4, 8, 20, __infinity} ;
+    //double r_limits[] = {0., 0.5, 1.5, 4, 8, 20, __infinity} ;
+    double r_limits[] = {0., 1., 1.5, 2.5 , 4, 8, 20, __infinity} ;
 
     Map_af map_1(mgrid, r_limits) ;   // Mapping construction
     Map_af map_2(mgrid, r_limits) ;   // Mapping construction
@@ -91,63 +96,19 @@ int main(int argc, char **argv) {
     map_2.set_ori(-3, 0.0024, 0);
 
 
-    /*
-    cout << map << endl ;
-
-    // Denomination of various coordinates associated with the mapping
-    // ---------------------------------------------------------------
-
-    const Coord& x = map.xa ;        // x field
-    const Coord& y = map.ya ;        // y field
-    const Coord& z = map.za ;        // z field
-
-
-    */
-
-
-    //sscanf(argv[5], "%s", filename);
-
-    
-    
-    
-
-    int it = 0;
-    
-
-    /* This is horrble practice, and I should have made just one file.
-    To be fixed...
-    */
-
     printf("%s\n", "[~] Reading Files");
+    int it = 0;
 
-    // Lapse
-    double *value_alp_1 = read_from_file(3 + size, "alp", 1, it);
-    double *value_alp_2 = read_from_file(3 + size, "alp", 2, it);
 
-    /*
-    // Shift
-    double *value_betax = read_from_file(3 + size, "betax", body, it);
-    double *value_betaz = read_from_file(3 + size, "betaz", body, it);
-    double *value_betay = read_from_file(3 + size, "betay", body, it);
+    /* 
+        Reads the laps functions from both of the black holes
 
-    // Metric
-    double *value_gxx = read_from_file(3 + size, "gxx", body, it);
-    double *value_gxy = read_from_file(3 + size, "gxy", body, it);
-    double *value_gxz = read_from_file(3 + size, "gxz", body, it);
-
-    double *value_gyy = read_from_file(3 + size, "gyy", body, it);
-    double *value_gyz = read_from_file(3 + size, "gyz", body, it);
-    double *value_gzz = read_from_file(3 + size, "gzz", body, it);
-
-    // Curvature
-    double *value_kxx = read_from_file(3 + size, "kxx", body, it);
-    double *value_kxy = read_from_file(3 + size, "kxy", body, it);
-    double *value_kxz = read_from_file(3 + size, "kxz", body, it);
-
-    double *value_kyy = read_from_file(3 + size, "kyy", body, it);
-    double *value_kyz = read_from_file(3 + size, "kyz", body, it);
-    double *value_kzz = read_from_file(3 + size, "kzz", body, it);
     */
+    // Lapse
+    double *value_alp_1 = read_from_file(3 + size, "gxx", 1, it);
+    double *value_alp_2 = read_from_file(3 + size, "gxx", 2, it);
+
+    
 
     printf("%s\n", "[+] Files Successfully Read");
 
@@ -160,64 +121,18 @@ int main(int argc, char **argv) {
     Scalar N_2(map_2) ;
     N_2.allocate_all() ;
 
-    /*
-
-    // Shift
-    Vector beta(map,CON,map.get_bvect_cart());
-    beta.allocate_all();
-
-    // Metric
-    Sym_tensor gamma(map,COV,map.get_bvect_cart());
-    gamma.allocate_all();
-
-    // Curavture
-    Sym_tensor curvature(map,COV,map.get_bvect_cart());
-    curvature.allocate_all();
-    */
 
     printf("%s\n", "[+] Quantities Successfully Allocated");
+    
+    
     // Assignes values from the read files
-
-
     for(int l=0;l<nz;l++){
         for(int k=0;k<np_array[l];k++){
             for(int j=0;j<nt_array[l];j++){
                 for(int i=0;i<nr_array[l];i++){
-                    //cout << l << " " << k << " " << j << " " << i << " " << l*k*j*i << " " << size << endl;
-                    //double Ndata = readdata(value_alp, l, k, j, i,nz, nr_array, nt_array, np_array);
                     N_1.set_grid_point(l, k, j, i) = readdata(value_alp_1, l, k, j, i,nz, nr_array, nt_array, np_array);
                     N_2.set_grid_point(l, k, j, i) = readdata(value_alp_2, l, k, j, i,nz, nr_array, nt_array, np_array);
 
-                    /*
-                    beta.set(1).set_grid_point(l, k, j, i) = readdata(value_betax, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    beta.set(2).set_grid_point(l, k, j, i) = readdata(value_betay, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    beta.set(3).set_grid_point(l, k, j, i) = readdata(value_betaz, l, k, j, i, nz, nr_array, nt_array, np_array);
-
-                    gamma.set(1,1).set_grid_point(l, k, j, i) = readdata(value_gxx, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    gamma.set(1,2).set_grid_point(l, k, j, i) = readdata(value_gxy, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    gamma.set(1,3).set_grid_point(l, k, j, i) = readdata(value_gxz, l, k, j, i, nz, nr_array, nt_array, np_array);
-
-                    gamma.set(2,2).set_grid_point(l, k, j, i) = readdata(value_gyy, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    gamma.set(2,3).set_grid_point(l, k, j, i) = readdata(value_gyz, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    gamma.set(3,3).set_grid_point(l, k, j, i) = readdata(value_gzz, l, k, j, i, nz, nr_array, nt_array, np_array);
-
-                    gamma.set(2,1).set_grid_point(l, k, j, i) = readdata(value_gxy, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    gamma.set(3,1).set_grid_point(l, k, j, i) = readdata(value_gxz, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    gamma.set(3,2).set_grid_point(l, k, j, i) = readdata(value_gyz, l, k, j, i, nz, nr_array, nt_array, np_array);
-
-
-                    curvature.set(1,1).set_grid_point(l, k, j, i) = readdata(value_kxx, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    curvature.set(1,2).set_grid_point(l, k, j, i) = readdata(value_kxy, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    curvature.set(1,3).set_grid_point(l, k, j, i) = readdata(value_kxz, l, k, j, i, nz, nr_array, nt_array, np_array);
-
-                    curvature.set(2,2).set_grid_point(l, k, j, i) = readdata(value_kyy, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    curvature.set(2,3).set_grid_point(l, k, j, i) = readdata(value_kyz, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    curvature.set(3,3).set_grid_point(l, k, j, i) = readdata(value_kzz, l, k, j, i, nz, nr_array, nt_array, np_array);
-
-                    curvature.set(2,1).set_grid_point(l, k, j, i) = readdata(value_kxy, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    curvature.set(3,1).set_grid_point(l, k, j, i) = readdata(value_kxz, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    curvature.set(3,2).set_grid_point(l, k, j, i) = readdata(value_kyz, l, k, j, i, nz, nr_array, nt_array, np_array);
-                    */
                 }
             }
         }
@@ -227,109 +142,91 @@ int main(int argc, char **argv) {
 
 
 
-
-
-
-
-
     // Converts to spectral bases
     N_1.std_spectral_base();
     N_2.std_spectral_base();
-    //beta.std_spectral_base();
-    //gamma.std_spectral_base();
-    //curvature.std_spectral_base();
     
-
 
     printf("%s\n", "[+] Quantities Successfully Made to Spectral Bases");
-    double rmax=60;
-
-    //des_meridian(N_1, 0, rmax, "N", 1) ;
-    //des_meridian(N_1, 0, 20, "N", 1) ;
-    des_coupe_z(N_1, 0., 4, "Lapse 1") ;
-    des_coupe_z(N_2, 0., 4, "Lapse 2") ;
-    des_coupe_bin_z((Cmp)N_1, (Cmp)N_2, 0., -20, 20, -20, 20, "Lapse",0x0,0x0,false) ;
-    des_coupe_bin_z((Cmp)N_1, (Cmp)N_2, 0., -10, 10, -10, 10, "Lapse",0x0,0x0,false) ;
-    des_coupe_bin_z((Cmp)N_1, (Cmp)N_2, 0., -40, 40, -40, 40, "Lapse",0x0,0x0,false) ;
-    arrete() ;
 
 
-
-
-
-
-    return EXIT_SUCCESS ;
-    // Converts from cartesian to spherical
     /*
-    cout << map.get_bvect_spher() << endl;
-    beta.change_triad(map.get_bvect_spher());
-    gamma.change_triad(map.get_bvect_spher());
-    curvature.change_triad(map.get_bvect_spher());
-    
-
-    printf("%s\n", "[+] Quantities Successfully Converted");
+        #########################################
+        The examples start here!
+        #########################################
+        
+        First are some plots of the data. The lapse of the
+        first black hole and the combined lapse are shown here.
     */
 
 
-    // Plotting for testing
-    cout << N_1.val_point(3,0,1) << endl;
+    double rmax=60;
 
-    FILE *fptr;
-    double N1, N2, r, phi;
-
-    if ((fptr = fopen("N_spherical.txt","w")) == NULL){
-        printf("Error! opening file");
-
-        // Program exits if the file pointer returns NULL.
-        exit(1);
-    }
-    
-    for(double x = -7; x<=7; x += 0.02)
-    {
-        cout << x << endl;
-        for(double y = -7; y<=7; y += 0.02){   
-            r = sqrt((x+3)*(x+3) + y*y);// + (y-0.0024)*(y-0.0024));
-            //phi = atan2(y-0.0024,x+3);
-            phi = atan2(x+3,y) + PI;
-            N1 = N_1.val_point(r,phi,0); //+ N_2.val_point(r,phi,0);
-            r = sqrt((x-3)*(x-3) + y*y);// + (y+0.0024)*(y+0.0024));
-            //phi = atan2(y+0.0024,x-3);
-            phi = atan2(x-3,y) + PI;
-
-            N2 = N_2.val_point(r,phi,0);
-
-            //fwrite(&N, sizeof(double), 1, fptr); 
-            fprintf(fptr, "%f %f %f %f\n", N1, N2, x, y);
-        }
-    }
-    fclose(fptr); 
-
-    
-    //des_meridian(N_2, 0, rmax, "N", 1) ;
-    des_coupe_z(N_1, 0., 4, "Lapse") ;
-    des_coupe_z(N_2, 0., 4, "Lapse") ;
-
-    des_coupe_z(N_1+N_2, 0., 4, "Lapse") ;
-    //des_coupe_z(gamma(1,1), 0., 4, "g_{xx}") ;
-    //des_coupe_z(curvature(1,1), 0., 5, "K_{xx}") ;
+    //des_coupe_z(N_1, 0., 4, "Lapse 1") ;
+    //des_coupe_bin_z((Cmp)N_1, (Cmp)N_2, 0., -5, 5, -5, 5, "gxx",0x0,0x0,false) ;
+    //des_coupe_bin_z((Cmp)N_1, (Cmp)N_2, 0., -20, 20, -20, 20, "gxx",0x0,0x0,false) ;
+    /*
+    des_coupe_z(N_2, 0., 4, "Lapse 2") ;
+    des_coupe_bin_z((Cmp)N_1, (Cmp)N_2, 0., -10, 10, -10, 10, "Lapse",0x0,0x0,false) ;
+    des_coupe_bin_z((Cmp)N_1, (Cmp)N_2, 0., -40, 40, -40, 40, "Lapse",0x0,0x0,false) ;
     arrete() ;
-
-
-    // Saves to Gyoto Readable File
-    /*Make correct file name... */
+    */
 
 
 
-    printf("%s\n", "[+] Quantities Successfully Written to File");
 
-    cout << "[+] Successfully Read From File and Saved Quantity" << endl;
+    /*
+        This gets the position of the first black hole in cartesian coordinates from the map object
+    */
+
+    double ori_x = map_1.get_ori_x();
+    double ori_y = map_1.get_ori_y();
+    double ori_z = map_1.get_ori_z();
+    
+    cout << "Position of black hole 1 is (" << ori_x << ", " << ori_y << ", " << ori_z << ")" << endl;
+
+    /*
+        The value of the lapse function can be retrived for any point r, theta, phi.
+        Sadly the orgin of this coordinates system is at the black holes (the origin of the map object).
+    */
+
+
+    // Lapse function at the center of the BHs
+    cout << N_1.val_point(0,0,0) << endl;
+    cout << N_2.val_point(0,0,0) << endl;
     
 
+    /*
+        A small loop to print out the value of the lapse of the firts BH.
+        This crosses the second BH and the origin, and if plotted shows
+        the profile and the effect of the smooting function.
+    */
+    double N1, N2, r, phi;
+    
+    for(double x = -10; x <= 10; x += 0.005){
+        r = sqrt(x*x );
+        phi = atan2(x,0) + PI;
+        cout  << x << "   " << N_2.val_point(r,0,phi) << endl;
+    }
 
 
-
+    
+    
     return EXIT_SUCCESS ;
+
+
 }
+
+
+
+/* 
+    ############################################################
+    Functions for reading the files from the python conversion
+    Can be ignored!
+    ############################################################
+*/
+
+
 
 double readdata(double *values, int l, int k, int j, int i, int nz, int nr, int nt, int np){
     int index = 3 + l*nr*nt*np + k*nt*nr + j*nr + i;

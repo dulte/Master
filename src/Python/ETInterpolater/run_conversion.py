@@ -12,7 +12,7 @@ TODO:
 - [~] Create argpasers so the user can start new or continue old conversion, or go final gyoto_conversion
 - Make so analyze_bbh used the paths from the parameter file
 - Create function to check if more quantities have been added to already existing conversion
-- Make safty checks if dz, nr, nt or np have been changed when continuing conversion
+- Make safty checks if nz, nr, nt or np have been changed when continuing conversion
 - Make argparses to do all the things 
     - Full/partial conversion
     - Final gyoto conversion, with check if all quantites are there
@@ -36,15 +36,17 @@ class ParameterReader:
             "geometry_type": "positiv",
             "geometry_size": 20,
             "geometry_resolution": 50,
-            "dz": 1,
+            "nz": 1,
             "nr": [0],
             "nt": [0],
             "np": [0],
+            "r_limits": [0.0],
             "it": [0],
             "pickle": 0,
             "pickle_folder": "",
             "interpolation": 2,
-            "quantities": ["alp"]
+            "quantities": ["alp"],
+            "finish": 0,
         }
         self.file_name = file_name
         self._read_file()
@@ -83,7 +85,7 @@ class ParameterReader:
 
         for p in self.parameters.keys():
             if p not in read_parameters.keys():
-                if p in ["np", "nt", "nr", "dz"]:
+                if p in ["np", "nt", "nr", "nz", "r_limits"]:
                     raise ValueError("%s is not found. This must be given" %p)
                 elif "folder" in p:
                     self.parameters[p] = "./"                
@@ -97,15 +99,19 @@ class ParameterReader:
         
 
         
-        if len(self.parameters["nr"]) != self.parameters["dz"]:
-            raise ValueError("nr does not have a length (%s) of dz (%s)"
-                %(len(self.parameters["nr"]), self.parameters["dz"]))
-        if len(self.parameters["np"]) != self.parameters["dz"]:
-            raise ValueError("np does not have a length (%s) of dz (%s)"
-                %(len(self.parameters["np"]), self.parameters["dz"]))
-        if len(self.parameters["nt"]) != self.parameters["dz"]:
-            raise ValueError("nt does not have a length (%s) of dz (%s)"
-                %(len(self.parameters["nt"]), self.parameters["dz"]))
+        if len(self.parameters["nr"]) != self.parameters["nz"]:
+            raise ValueError("nr does not have a length (%s) of nz (%s)"
+                %(len(self.parameters["nr"]), self.parameters["nz"]))
+        if len(self.parameters["np"]) != self.parameters["nz"]:
+            raise ValueError("np does not have a length (%s) of nz (%s)"
+                %(len(self.parameters["np"]), self.parameters["nz"]))
+        if len(self.parameters["nt"]) != self.parameters["nz"]:
+            raise ValueError("nt does not have a length (%s) of nz (%s)"
+                %(len(self.parameters["nt"]), self.parameters["nz"]))
+        if len(self.parameters["r_limits"]) != self.parameters["nz"]+1:
+            raise ValueError("r_limits does not have a length (%s) of nz+1 (%s)"
+                %(len(self.parameters["r_limits"]), self.parameters["nz"]+1))
+
 
     
 
@@ -141,8 +147,12 @@ class Setup:
 
         try:
             copy(from_c_path, self.folder+"/")
+            #copy(from_c_path +".C", self.folder+"/")
         except:
             raise ValueError("get_points not found at: %s" %from_c_path)
+
+        os.chdir(self.folder)
+        self.folder = "./"
 
         print "[+] Setting up enviroment done"
         
@@ -156,12 +166,12 @@ class Setup:
                     f.write(key + ": " + str(self.parameters[key]) + "\n")
         
         with open(self.folder + "/lorene_parameters.txt", "w") as f:
-            f.write(str(self.parameters["dz"]) + "\n")
-            for n in ["nr", "nt", "np"]:
+            f.write(str(self.parameters["nz"]) + "\n")
+            for n in ["nr", "nt", "np", "r_limits"]:
                 for i in self.parameters[n]:
                     f.write(str(i) + " ")
                 
-                if n != "np":
+                if n != "r_limits":
                     f.write("\n")
 
 
@@ -189,14 +199,16 @@ class Runner:
         it = setup.parameters["it"]
         geometry_corner = setup.parameters["geometry_size"]
         geometry_res = setup.parameters["geometry_resolution"]
-        c_path = setup.parameters["c_path"]
+        c_path = setup.folder + "/"
         result_path = setup.folder
+        do_gyoto_converstion = setup.parameters["finish"]
+        
 
         inter = ETInterpolater(folder, setup.parameters["interpolation"])
         g = inter.make_positive_geometry([-geometry_corner]*3, geometry_res)
         et_q = ETQuantities(g, it[0], folder, pickle_folder=pickle_folder, pickle=pickle)
         
-        inter.analyse_bbh(g, et_q, it, result_path=result_path,c_path=c_path, quantities=quantites, test=False)
+        inter.analyse_bbh(g, et_q, it, result_path=result_path,c_path=c_path, quantities=quantites, test=False, do_gyoto_converstion=do_gyoto_converstion)
     
     def _continue(self):
         pass

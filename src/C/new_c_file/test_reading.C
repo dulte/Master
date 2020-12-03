@@ -36,45 +36,52 @@ int main(int argc, char **argv) {
     int line = 0;
     char buf[255];
     
-    int dz;
+    int nz;
 
     if (fgets(buf, sizeof(buf), fp) != NULL){
-        dz = atoi(buf);
-        cout << dz << endl;
+        nz = atoi(buf);
+        cout << nz << endl;
     }
 
 
-    int nr_array[dz];
-    int nt_array[dz];
-    int np_array[dz];
-    int type_r[dz];
+    int nr_array[nz];
+    int nt_array[nz];
+    int np_array[nz];
+    int type_r[nz];
+    double r_limits[nz+2];
 
-    int temp_holder[dz*3];
+    double temp_holder[nz*4+2];
     int temp_countr = 0;
 
     while( fgets(buf, sizeof(buf), fp) != NULL){
         char *tolken = strtok(buf, "\n"); 
-        cout << tolken << endl;
+        //cout << tolken << endl;
         char *token = strtok(tolken, " ");
         while(token != NULL){
-            temp_holder[temp_countr++] = atoi(token);
+            temp_holder[temp_countr++] = atof(token);
             token = strtok(NULL, " ");
         }
     }
 
-    for(int i = 0; i<dz; i++){
+    for(int i = 0; i<nz; i++){
         nr_array[i] = temp_holder[i];
     }
-    for(int i = 0; i<dz; i++){
-        nt_array[i] = temp_holder[dz+i];
+    for(int i = 0; i<nz; i++){
+        nt_array[i] = temp_holder[nz+i];
     }
-    for(int i = 0; i<dz; i++){
-        np_array[i] = temp_holder[2*dz+i];
+    for(int i = 0; i<nz; i++){
+        np_array[i] = temp_holder[2*nz+i];
     }
 
+    for(int i = 0; i<nz+2; i++){
+        r_limits[i] = temp_holder[3*nz+i];
+    }
+
+    r_limits[nz+1] = __infinity;
+
     type_r[0] = RARE;
-    type_r[dz-1] = UNSURR;
-    for(int i = 1; i < dz-1; i++){
+    type_r[nz-1] = UNSURR;
+    for(int i = 1; i < nz-1; i++){
         type_r[i] = FIN;
     }
 
