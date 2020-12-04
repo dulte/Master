@@ -135,6 +135,7 @@ class Setup:
             raise ValueError("Folder already exists")
 
         self.create_parameterfile()
+        self._make_positionfile()
 
         from_c_path = ""
 
@@ -173,8 +174,17 @@ class Setup:
                 
                 if n != "r_limits":
                     f.write("\n")
+    
+    def load_setup(self):
+        self.parameters["c_path"] = "./"
+        self.parameters["result_folder"] = "./"
 
 
+
+    def _make_positionfile(self):
+        inter = ETInterpolater(self.folder, self.parameters["interpolation"])
+        possible_iterations, positions, radii = inter.read_bbh_diag()
+        print positions, radii
 
 
 
@@ -184,6 +194,16 @@ class Runner:
         if args.option == "run":
             self._run()
 
+    def _find_setup(self):
+        pass
+
+    def _setup(self):
+        pass
+
+
+
+
+
     def _run(self):
         parameters_loc = self.args.parameters
         if os.path.isfile(parameters_loc):
@@ -192,6 +212,7 @@ class Runner:
         else:
             raise ValueError("Parameter file not found at: %s" %parameters_loc)
 
+        exit()
         folder = setup.parameters["simulation_folder"]
         pickle_folder = setup.parameters["pickle_folder"]
         pickle = setup.parameters["pickle"]
