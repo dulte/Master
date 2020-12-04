@@ -5,6 +5,7 @@ import argparse
 import datetime
 import os
 from shutil import copy
+import numpy as np
 
 
 """
@@ -23,6 +24,8 @@ TODO:
 
 
 - Implement non positive geometry
+
+- Make the code use all the iterations...
 """
 
 class ParameterReader:
@@ -59,7 +62,7 @@ class ParameterReader:
                 if line == "\n":
                     continue
                 words = line.split(":")
-                if len(words) != 2:
+                if len(words) != 2 and words[0].strip() != "time":
                     raise ValueError("The line %s is not correctly formatted" %line)
                 else:
                     read_parameters[words[0].strip()] = words[1].strip()
@@ -71,6 +74,8 @@ class ParameterReader:
     def _evaluate_parameters(self, read_parameters):
         for key in read_parameters.keys():
             if key in self.parameters.keys():
+                if key == "time":
+                    continue
 
                 if type(eval(read_parameters[key])) == type(self.parameters[key]):
                     self.parameters[key] = eval(read_parameters[key])
@@ -163,6 +168,8 @@ class Setup:
             for key in self.parameters.keys():
                 if self.parameters[key] == "":
                     f.write(key + ": " + '""' + "\n")
+                elif type(self.parameters[key]) == str:
+                    f.write(key + ": " + '"' + str(self.parameters[key]) + '"' + "\n")
                 else:
                     f.write(key + ": " + str(self.parameters[key]) + "\n")
         
@@ -175,16 +182,41 @@ class Setup:
                 if n != "r_limits":
                     f.write("\n")
     
-    def load_setup(self):
-        self.parameters["c_path"] = "./"
-        self.parameters["result_folder"] = "./"
+    def load_setup(self, folder):
+        #self.parameters["c_path"] = "./"
+        #self.parameters["result_folder"] = "./"
+        self.folder = folder
+        os.chdir(self.folder)
+        self.folder = "./"
+        self._read_positionfile()
+
 
 
 
     def _make_positionfile(self):
-        inter = ETInterpolater(self.folder, self.parameters["interpolation"])
+        inter = ETInterpolater(self.parameters["simulation_folder"], self.parameters["interpolation"])
         possible_iterations, positions, radii = inter.read_bbh_diag()
-        print positions, radii
+        with open(self.folder + "/bh_data.txt", "w") as f:
+            f.write(str(radii[0,0]) + "\n")
+            f.write(str(radii[1,0]) + "\n")
+            for i in positions[0,:,0]:
+                f.write(str(i)+", ")
+            f.write("\n")
+            for i in positions[1,:,0]:
+                f.write(str(i)+", ")
+
+    def _read_positionfile(self):
+        with open(self.folder+"/bh_data.txt", "r") as f:
+            r = f.readline().split()[0]
+            r2 = f.readline().split()[0]
+            self.radii = [float(r), float(r2)]
+            self.pos1 = []
+            self.pos2 = []
+            for i in f.readline().split(",")[:-1]:
+                self.pos1.append(float(i))
+            for i in f.readline().split(",")[:-1]:
+                self.pos2.append(float(i))
+            
 
 
 
@@ -193,6 +225,8 @@ class Runner:
         self.args = args
         if args.option == "run":
             self._run()
+        elif args.option == "continue":
+            self._continue()
 
     def _find_setup(self):
         pass
@@ -232,7 +266,14 @@ class Runner:
         inter.analyse_bbh(g, et_q, it, result_path=result_path,c_path=c_path, quantities=quantites, test=False, do_gyoto_converstion=do_gyoto_converstion)
     
     def _continue(self):
-        pass
+        result_folder = self.args.result_folder
+        if not os.path.isdir(result_folder):
+            raise ValueError("%s directory not found" %result_folder)
+        
+        setup = Setup(result_folder+"/parameterfile.txt")
+
+        setup.load_setup(result_folder)
+
     
     def _rerun(self):
         pass
@@ -252,7 +293,7 @@ if __name__ == "__main__":
 
     parser.add_argument("option", choices=["run", "continue", "rerun", "testplot", "finish"], help="Choose action: run, continue, rerun, finish or testplot")
     parser.add_argument("-q", "--quantity", dest="plot_quantity", help="Quantity to be plotted if testplot is choosen")
-    parser.add_argument("-f", "--folder", dest="restult_folder", help="Folder where old results are found, in case continue, finish or rerun is choosen")
+    parser.add_argument("-f", "--folder", dest="result_folder", help="Folder where old results are found, in case continue, finish or rerun is choosen")
     parser.add_argument("-p", "--parameters", dest="parameters", default="parameters.txt", help="Name of parameter file for run. If nothing is given, it is assumed to be in the same location as the python program, and named parameters.txt")
 
 
