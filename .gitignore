@@ -1,4 +1,4 @@
 *.o
 *.pyc
-C/get_points
-C/file_reader/file_reader
+src/C/get_points
+src/C/file_reader/file_reader
