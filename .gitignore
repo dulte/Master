@@ -1,0 +1,4 @@
+*.o
+*.pyc
+C/get_points
+C/file_reader/file_reader
