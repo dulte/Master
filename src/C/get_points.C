@@ -21,7 +21,7 @@
 TODO:
     - Use get_bvect_cart() since this is read as cartesian!
       Then use change_triad(map.get_bvect_spher())
-
+    -Fix compile error..
 */
 
 using namespace Lorene ;
@@ -361,8 +361,9 @@ int main(int argc, char **argv) {
         //des_meridian(gamma(1,1), 1, rmax, "Gamma", 1) ;
         
         des_coupe_z(N, 1., 4, "Lapse") ;
-        arrete() ;
 
+        arrete() ;
+        */
 
         // Saves to Gyoto Readable File
         /*Make correct file name... */
