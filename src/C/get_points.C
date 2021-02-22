@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
     }
 
 
-
+    /*
 
     // Reads from parameterfile
     FILE* fp = fopen("lorene_parameters.txt", "r");
@@ -57,9 +57,9 @@ int main(int argc, char **argv) {
     int nt_array[nz];
     int np_array[nz];
     int type_r[nz];
-    double r_limits[nz+2];
+    double r_limits[nz+1];
 
-    double temp_holder[nz*4+2];
+    double temp_holder[nz*4+1];
     int temp_countr = 0;
 
     while( fgets(buf, sizeof(buf), fp) != NULL){
@@ -82,11 +82,12 @@ int main(int argc, char **argv) {
         np_array[i] = temp_holder[2*nz+i];
     }
 
-    for(int i = 0; i<nz+2; i++){
+    for(int i = 0; i<nz+1; i++){
         r_limits[i] = temp_holder[3*nz+i];
     }
 
-    r_limits[nz+1] = __infinity;
+    r_limits[nz] = __infinity;
+
 
     type_r[0] = RARE;
     type_r[nz-1] = UNSURR;
@@ -94,10 +95,11 @@ int main(int argc, char **argv) {
         type_r[i] = FIN;
     }
 
+    */
 
     // Setup of a multi-domain grid (Lorene class Mg3d)
     // ------------------------------------------------
-    // nz = 6 ; 	// Number of domains
+    int nz = 6 ; 	// Number of domains
     /*
     int nr = 25; 	// Number of collocation points in r in each domain
     int nt = 11 ; 	// Number of collocation points in theta in each domain
@@ -108,11 +110,21 @@ int main(int argc, char **argv) {
     int np_array[]  = {142, 142, 142, 142, 122, 102, 62};
 
     /*
+    int nr_array[]  = {135, 135, 135, 135, 67, 57};
+    int nt_array[]  = {51, 51, 51, 51, 51, 31};
+    int np_array[]  = {142, 142, 142, 122, 102, 62};
+
+
+
+
+
+    int nr_array[]  = {25, 25, 25, 25, 25, 25};
+    int nt_array[]  = {7, 7, 7, 7, 7, 7};
+    int np_array[]  = {4, 4, 4, 4, 4, 4};
+    */
     int nr_array[]  = {55, 55, 55, 85, 17, 11};
     int nt_array[]  = {11, 11, 11, 11, 11, 11};
     int np_array[]  = {52, 72, 72, 82, 42, 42};
-    */
-
 
     // int size = nz*nr*np*nt
     int size = 0;
@@ -124,7 +136,7 @@ int main(int argc, char **argv) {
 
 
 
-    //int type_r[] = {RARE, FIN, FIN, FIN, FIN, UNSURR};
+    int type_r[] = {RARE, FIN, FIN, FIN, FIN, UNSURR};
     int symmetry_theta = SYM ; // symmetry with respect to the equatorial plane
     int symmetry_phi = NONSYM ; // no symmetry in phi
     bool compact = true ; // external domain is compactified
@@ -142,6 +154,8 @@ int main(int argc, char **argv) {
 
     // radial boundaries of each domain:
     //double r_limits[] = {0., 0.5, 1.5, 4, 8, 20, __infinity} ;
+    //double r_limits[] = {0., 0.51, 1., 2, 4, 8, __infinity} ;
+    double r_limits[] = {0., 2, 4., 6, 8, 20, __infinity} ;
 
 
 
