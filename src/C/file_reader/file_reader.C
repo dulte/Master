@@ -38,22 +38,24 @@ int main(int argc, char **argv) {
 
     // Setup of a multi-domain grid (Lorene class Mg3d)
     // ------------------------------------------------
-    int nz = 7 ; 	// Number of domains
+    int nz = 6 ; 	// Number of domains
     /*
     int nr = 25; 	// Number of collocation points in r in each domain
     int nt = 11 ; 	// Number of collocation points in theta in each domain
     int np = 42 ; 	// Number of collocation points in phi in each domain
-    */
-    /*
     int nr_array[]  = {135, 135, 135, 135, 67, 57};
     int nt_array[]  = {51, 51, 51, 51, 51, 31};
     int np_array[]  = {142, 142, 142, 122, 102, 62};
-    */
+    */ 
 
+    /*
     int nr_array[]  = {135, 135, 135, 135, 135, 67, 57};
     int nt_array[]  = {51, 51, 51, 51, 51, 51, 31};
     int np_array[]  = {142, 142, 142, 142, 122, 102, 62};
-
+    */
+    int nr_array[]  = {55, 55, 55, 85, 17, 11};
+    int nt_array[]  = {11, 11, 11, 11, 11, 11};
+    int np_array[]  = {52, 72, 72, 82, 42, 42};
 
     // int size = nz*nr*np*nt
     int size = 0;
@@ -65,8 +67,8 @@ int main(int argc, char **argv) {
 
 
 
-    //int type_r[] = {RARE, FIN, FIN, FIN, FIN, UNSURR};
-    int type_r[] = {RARE, FIN, FIN, FIN, FIN, FIN, UNSURR};
+    int type_r[] = {RARE, FIN, FIN, FIN, FIN, UNSURR};
+    //int type_r[] = {RARE, FIN, FIN, FIN, FIN, FIN, UNSURR};
     int symmetry_theta = SYM ; // symmetry with respect to the equatorial plane
     int symmetry_phi = NONSYM ; // no symmetry in phi
     bool compact = true ; // external domain is compactified
@@ -83,17 +85,19 @@ int main(int argc, char **argv) {
     // --------------------------------------------------------------------------
 
     // radial boundaries of each domain:
-    //double r_limits[] = {0., 0.5, 1.5, 4, 8, 20, __infinity} ;
+    double r_limits[] = {0., 0.5, 1.5, 4, 8, 20, __infinity} ;
     //double r_limits[] = {0., 0.25, 0.75, 1.5, 4, 8, 20, __infinity} ;
-    double r_limits[] = {0., 1., 1.5, 2.5 , 4, 8, 20, __infinity} ;
+    //double r_limits[] = {0., 1., 1.5, 2.5 , 4, 8, 20, __infinity} ;
 
     Map_af map_1(mgrid, r_limits) ;   // Mapping construction
     Map_af map_2(mgrid, r_limits) ;   // Mapping construction
 
     // Sets the origin to one of the black holes
     
-    map_1.set_ori(3, -0.0024, 0);
-    map_2.set_ori(-3, 0.0024, 0);
+    map_1.set_ori(0, 0, 0);
+    map_2.set_ori(0, 0, 0);
+    //map_1.set_ori(3, -0.0024, 0);
+    //map_2.set_ori(-3, 0.0024, 0);
 
 
     /*
@@ -126,7 +130,7 @@ int main(int argc, char **argv) {
     printf("%s\n", "[~] Reading Files");
 
     // Lapse
-    double *value_alp_1 = read_from_file(3 + size, "alp", 1, it);
+    double *value_alp_1 = read_from_file(3 + size, "gxx", 1, it);
     double *value_alp_2 = read_from_file(3 + size, "alp", 2, it);
 
     /*
@@ -247,11 +251,12 @@ int main(int argc, char **argv) {
 
 
     printf("%s\n", "[+] Quantities Successfully Made to Spectral Bases");
-    double rmax=60;
+    double rmax=300;
 
-    //des_meridian(N_1, 0, rmax, "N", 1) ;
+    des_meridian(N_1, 0, rmax, "N", 1) ;
+    //des_meridian(N_2, 0, rmax, "N", 1) ;
     //des_meridian(N_1, 0, 20, "N", 1) ;
-    //des_coupe_z(N_1, 0., 4, "Lapse 1") ;
+    des_coupe_z(N_1, 0., 4, "Lapse 1") ;
     //des_coupe_z(N_2, 0., 4, "Lapse 2") ;
     des_coupe_bin_z((Cmp)N_1, (Cmp)N_2, 0., -5, 5, -5, 5, "Lapse",0x0,0x0,false) ;
     des_coupe_bin_z((Cmp)N_1, (Cmp)N_2, 0., -10, 10, -10, 10, "Lapse",0x0,0x0,false) ;
