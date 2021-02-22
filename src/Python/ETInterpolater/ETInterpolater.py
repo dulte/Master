@@ -35,6 +35,46 @@ TODO:
 """
 
 
+class ReadQuantities:
+    def __init__(self, geometries, iteration, simulation_folder,  quantity_names=[], pickle=True, pickle_folder=""):
+        self.quantity_instances = []
+        self.limits = [abs(g.x1()[0]) for g in self.geometries]
+        self.geometries = geometries
+
+        for g in self.geometries:
+            temp_quantities.append(ETQuantities(g, iteration, simulation_folder, quantity_names, pickle, pickle_folder))
+        
+        self.quantity_instances = [x for _,x in sorted(self.limits, temp_quantities)]
+        self.limits = sorted(self.limits)
+        
+        print "[+] Ready to Read %s Grids, with the Radii %s" %(len(self.limits), self.limits)
+
+    
+
+    def read(self, name):
+        for i, q in enumerate(self.quantity_instances):
+            print "[~] Starting to Read %s on Grid with geometry %s" %(%name,self.geometries[i])
+
+            q.read(name)
+
+            print "[+] Done Reading"
+        
+    
+    def test_plot(self, quantiy="alp"):
+        for q in self.quantity_instances:
+            q.test_plot(quantiy)
+
+    def __call__(self, coords):
+        for i,q in self.quantity_instances:
+            limit = self.limits[i]
+            if coords[0] > limit or coords[1] > limit or coords[2] > limit:
+                continue
+            else:
+                return q(coords)
+        
+        return self.quantity_instances[-1](coords)
+
+
 
 
 
@@ -1252,7 +1292,75 @@ quantities[quantity]
         print "[+] Done in %.3f min!" %((time.time()- start_time)/60.)
 
 
+    def _make_analytical_metric(self, analytical_function, c_path="../../C/", result_path="./", do_gyoto_converstion=True):
+        quantities = ["alp", "betax", "betay", "betaz",
+                    "gxx", "gxy", "gxz", "gyy", "gyz", "gzz",
+                    "kxx", "kxy", "kxz", "kyy", "kyz", "kzz"]
+        start_time = time.time()
+        for quantity in quantities:
+            
+            print "[+] Function with metric component %s made" %quantity
+            
+            q = analytical_function(quantity)
+            
+            pos = np.array([0,0,0])
 
+
+            values, flatten_values = self.get_values_at_coll_points(q,c_path=c_path,smooth=False, bh_pos=pos, bh_rad=1,bh_pos2=pos, bh_rad2=1, scaling_factor=0)
+            filename = "%s/%s_%s_body1.txt" %(result_path,quantity, 0)
+            self.write_flatten_values_to_file(flatten_values, 0, 1, filename)
+
+
+            print "\n INFO: Time used: %.3f min.\n\n" %((time.time()- start_time)/60.)
+
+        if do_gyoto_converstion:
+            print "[~] LORENE is Writing BH1 to GYOTO File"
+            self.LORENE_read(filename, c_path=c_path, body=1, origin=pos, it=0)
+
+            
+
+
+        print "[+] Done in %.3f min!" %((time.time()- start_time)/60.)
+
+
+    def get_minkowski_component(self,quantity):
+        if quantity in ["alp", "gxx", "gyy", "gzz"]:
+            return lambda x : 1
+        else:
+            return lambda x : 0
+
+    def _non_zero_schwarzschild_alp(self, x):
+        r = sqrt(x[0]**2 + x[1]**2 + x[2]**2)
+        if abs(r) < 0.5:
+            return 1
+        return (1-1/(2*r))/(1+1/(2*r))
+        
+    def _non_zero_schwarzschild_gamma(self, x):
+        r = sqrt(x[0]**2 + x[1]**2 + x[2]**2)
+        if abs(r) < 0.5:
+            return 1
+        return (1+1/(2*r))**4
+
+
+    def get_schwarzschild_isotropic_compinents(self, quantity):
+        if quantity == "alp":
+            return self._non_zero_schwarzschild_alp
+        elif quantity in ["gxx", "gyy", "gzz"]:
+            return self._non_zero_schwarzschild_gamma
+        else:
+            return lambda x : 0
+
+        
+    def make_minkowski(self, c_path="../../C/", result_path="./", do_gyoto_converstion=True):
+        analytical_function = self.get_minkowski_component
+        self._make_analytical_metric(analytical_function, c_path, result_path, do_gyoto_converstion)
+
+    def make_schwarzschild_isotropic(self, c_path="../../C/", result_path="./", do_gyoto_converstion=True):
+        analytical_function = self.get_schwarzschild_isotropic_compinents
+        self._make_analytical_metric(analytical_function, c_path, result_path, do_gyoto_converstion)
+    
+
+    
 
 
 
@@ -1266,6 +1374,17 @@ if __name__=="__main__":
     #folder = "/mn/stornext/d13/euclid/daniehei/simulations/kerr"
 
     pickle_folder = "/mn/stornext/d13/euclid/daniehei/ETConverter/spline_pickles"
+
+    ### For making minkowski space
+
+    inter = ETInterpolater("", 2)
+    inter.xlim = [-1000,1000]
+    inter.ylim = [-1000,1000]
+    inter.zlim = [-1000,1000]
+    #inter.make_minkowski(do_gyoto_converstion=False)
+    inter.make_schwarzschild_isotropic(do_gyoto_converstion=False)
+    exit()
+
 
     quantity = "betax"
     filename = "%s.txt" %quantity

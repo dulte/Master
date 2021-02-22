@@ -38,9 +38,9 @@ int main(int argc, char **argv) {
     }
 
 
-    /*
 
     // Reads from parameterfile
+    /*
     FILE* fp = fopen("lorene_parameters.txt", "r");
     int line = 0;
     char buf[255];
@@ -94,7 +94,6 @@ int main(int argc, char **argv) {
     for(int i = 1; i < nz-1; i++){
         type_r[i] = FIN;
     }
-
     */
 
     // Setup of a multi-domain grid (Lorene class Mg3d)
@@ -109,10 +108,12 @@ int main(int argc, char **argv) {
     int nt_array[]  = {51, 51, 51, 51, 51, 51, 31};
     int np_array[]  = {142, 142, 142, 142, 122, 102, 62};
 
+
     /*
     int nr_array[]  = {135, 135, 135, 135, 67, 57};
     int nt_array[]  = {51, 51, 51, 51, 51, 31};
     int np_array[]  = {142, 142, 142, 122, 102, 62};
+
 
 
 
@@ -328,7 +329,11 @@ int main(int argc, char **argv) {
 
         printf("%s\n", "[+] Quantities Successfully Made to Spectral Bases");
 
+        Sym_tensor cart_gamma(map,COV,map.get_bvect_cart());
+        cart_gamma = gamma;
 
+        double rmax=100;
+        des_meridian(gamma(2,2), 5, rmax, "N", 2) ;
 
         // Converts from cartesian to spherical
         cout << map.get_bvect_spher() << endl;
@@ -338,14 +343,33 @@ int main(int argc, char **argv) {
         //inv_gamma.change_triad(map.get_bvect_spher());
 
         printf("%s\n", "[+] Quantities Successfully Converted");
+        /*
+        gamma.set(1,2) = 0;
+        gamma.set(1,3) = 0;
+        gamma.set(2,1) = 0;
+        gamma.set(3,1) = 0;
+        gamma.set(3,2) = 0;
+        gamma.set(2,3) = 0;
 
+        gamma.set(1,1) = 1;//cart_gamma(1,1);
+        gamma.set(2,2) = 1;//cart_gamma(2,2);
+        gamma.set(3,3) = 1;//cart_gamma(3,3);
+        */
+
+        
+        des_meridian(N, 0, rmax, "Gamma 1 1", 3) ;
+        
+        Metric metric(map.flat_met_spher());
+        metric = gamma;
 
 
         // Plotting for testing
-        /*
-        double rmax=4;
-        des_meridian(N, 0, rmax, "N", 1) ;
-        des_coupe_z(N, 0., 4, "Lapse") ;
+
+        //double rmax=8;
+        //des_meridian(gamma(1,1), 1, rmax, "Gamma", 1) ;
+        
+        des_coupe_z(N, 1., 4, "Lapse") ;
+
         arrete() ;
         */
 
@@ -364,9 +388,13 @@ int main(int argc, char **argv) {
         map.sauve(file_out) ;
         N.sauve(file_out) ;
         beta.sauve(file_out) ;
-        gamma.sauve(file_out) ;
+        Metric(gamma).cov().sauve(file_out) ;
+        //metric.cov().sauve(file_out) ;
+        //metric.con().sauve(file_out) ;
+        //gamma.sauve(file_out) ;
         //inv_gamma.sauve(file_out) ;
         Metric(gamma).con().sauve(file_out);
+        //gamma.con().sauve(file_out);
         curvature.sauve(file_out) ;
 
         fclose(file_out) ;
