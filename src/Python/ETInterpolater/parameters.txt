@@ -7,3 +7,5 @@ pickle: 1
 c_path: "../../C"
 result_folder: "./"
 interpolation: 2
+finish: 0
+quantities: ["alp", "gxx"]
