@@ -35,6 +35,46 @@ TODO:
 """
 
 
+class ReadQuantities:
+    def __init__(self, geometries, iteration, simulation_folder,  quantity_names=[], pickle=True, pickle_folder=""):
+        self.quantity_instances = []
+        self.limits = [abs(g.x1()[0]) for g in self.geometries]
+        self.geometries = geometries
+
+        for g in self.geometries:
+            temp_quantities.append(ETQuantities(g, iteration, simulation_folder, quantity_names, pickle, pickle_folder))
+        
+        self.quantity_instances = [x for _,x in sorted(self.limits, temp_quantities)]
+        self.limits = sorted(self.limits)
+        
+        print "[+] Ready to Read %s Grids, with the Radii %s" %(len(self.limits), self.limits)
+
+    
+
+    def read(self, name):
+        for i, q in enumerate(self.quantity_instances):
+            print "[~] Starting to Read %s on Grid with geometry %s" %(%name,self.geometries[i])
+
+            q.read(name)
+
+            print "[+] Done Reading"
+        
+    
+    def test_plot(self, quantiy="alp"):
+        for q in self.quantity_instances:
+            q.test_plot(quantiy)
+
+    def __call__(self, coords):
+        for i,q in self.quantity_instances:
+            limit = self.limits[i]
+            if coords[0] > limit or coords[1] > limit or coords[2] > limit:
+                continue
+            else:
+                return q(coords)
+        
+        return self.quantity_instances[-1](coords)
+
+
 
 
 
