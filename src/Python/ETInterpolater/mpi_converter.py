@@ -1,4 +1,4 @@
-from ETInterpolater import ETInterpolater, ETQuantities
+from ETInterpolater import ETInterpolater, ETQuantities, ETQuantities_gridInterpolator
 from mpi4py import MPI
 from time import sleep
 
@@ -9,6 +9,8 @@ size = comm.Get_size()
 
 folder = "/mn/stornext/d13/euclid/daniehei/simulations/bbh_3D"
 #pickle_folder = "/mn/stornext/d13/euclid/daniehei/ETConverter/spline_pickles/smallTest"
+#folder = "/mn/stornext/d13/euclid/daniehei/simulations/tov_3D"
+#folder = "/mn/stornext/d13/euclid/daniehei/simulations/kerr"
 pickle_folder = "/mn/stornext/d13/euclid/daniehei/ETConverter/spline_pickles"
 
 #quantities = ["gxx", "gyy"]
@@ -39,11 +41,19 @@ sleep(rank)
 print rank, rank_quantities
 
 sleep(3)
+nb_bodies = 2
+inter = ETInterpolater(folder, nb_bodies)
+g = inter.make_positive_geometry([-80,-80, -80], 400)
+#g = inter.make_positive_geometry([-200,-200, -200], 800)
 
-inter = ETInterpolater(folder, 2)
-g = inter.make_positive_geometry([-25,-25, -25], 400)
+"""
+For best image of kerr use [-200,-200, -200], 100
+"""
 
 et_q = ETQuantities(g, it, folder, pickle_folder=pickle_folder, pickle=False)
+#et_q = ETQuantities_gridInterpolator(g, it, folder, pickle_folder=pickle_folder, pickle=False)
 
 
-inter.analyse_bbh(g, et_q, [it],quantities=rank_quantities, test=False, do_gyoto_converstion=False)
+smooth = True
+
+inter.analyse_bbh(g, et_q, [it],quantities=rank_quantities, test=False, do_gyoto_converstion=False, split=smooth)

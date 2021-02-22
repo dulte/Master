@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import h5py
 import subprocess
 import time
+from math import sqrt
 
 import os
 import pickle
@@ -16,7 +17,7 @@ from postcactus.simdir import SimDir
 from postcactus import visualize as viz
 from postcactus import grid_data as gd
 
-from scipy import ndimage
+from scipy import ndimage, interpolate
 
 
 """
@@ -65,6 +66,7 @@ class ETQuantities(object):
     def read(self, name):
         start_time = time.time()
         full_path = "%s/%s_%s" %(self.folder, name, self.filename)
+        self.name = name
 
         if self._check_pickle(name):
             print "[~] Pickle Found. Reading Pickle."
@@ -176,18 +178,22 @@ class ETQuantities(object):
 
         """
 
+        
         try:
             q = self.read(quantity)
         except:
             raise ValueError("[-] Quantity %s not found" %quantity)
 
         n = 300
-        end = 20
+        end = 50
         q_inter = np.zeros((n,n))
+        one_dim_plot = np.zeros(n)
         x = np.linspace(-end, end, n)
         y = np.linspace(-end, end, n)
 
         for i in range(n):
+            one_dim_plot[i] = self([abs(x[i]), 0, 0])
+
             for j in range(n):
                 input = np.array([abs(x[i]), abs(y[j]),0])
 
@@ -199,6 +205,10 @@ class ETQuantities(object):
         plt.show()
 
         plt.contour(x,y,q_inter, 20)
+        plt.show()
+
+        plt.plot(x, one_dim_plot)
+        plt.ylim(-1,10)
         plt.show()
 
 
@@ -224,6 +234,54 @@ class ETQuantities(object):
 
 
 
+
+class ETQuantities_gridInterpolator(ETQuantities):
+    def read(self, name):
+        start_time = time.time()
+        full_path = "%s/%s_%s" %(self.folder, name, self.filename)
+        self.name = name
+
+        if self._check_pickle(name):
+            print "[~] Pickle Found. Reading Pickle."
+            self.load_pickle(name)
+
+        else:
+            print "[~] Pickle Not Found. Reading From ET Files."
+
+            grid = self._read_quantity(name, self.geo, self.iteration)
+            self.loaded_spline = self._get_interpolator(grid)
+
+        if self.pickle == True and not os.path.exists(full_path):
+            self.pickle_quantities(name)
+
+        print "Read All Quantities in %s seconds" %(time.time()-start_time)
+        return self.quantities
+
+    def _get_interpolator(self, grid):
+
+        #shape = self.geo.shape()
+        
+        shape = grid.data.shape
+        min_corner = self.geo.x0()
+        max_corner = self.geo.x1()
+        x = np.linspace(min_corner[0], max_corner[0], shape[0])
+        y = np.linspace(min_corner[1], max_corner[1], shape[1])
+        z = np.linspace(min_corner[2], max_corner[2], shape[2])
+
+        return interpolate.RegularGridInterpolator((x,y,z), grid.data, bounds_error=False, fill_value=None)
+
+    def __call__(self, coords):
+        """
+        best results is 200 and 1.5
+        """
+        
+        if self.name in ["alp", "gxx", "gyy", "gzz"]:
+            if sqrt(coords[0]**2 + coords[1]**2 + coords[2]**2) > 500:
+                return 1
+            elif sqrt(coords[0]**2 + coords[1]**2 + coords[2]**2) < 1.5:
+                return 0
+        
+        return self.loaded_spline(coords)
 
 
 
@@ -401,11 +459,11 @@ class ETInterpolater:
             raise ValueError("Wrong Number of Corners! User 2 or 3!")
 
         corner1 = [abs(i) for i in corner]
-        self.xlim = [0, abs(corner[0])]
-        self.ylim = [0, abs(corner[1])]
+        self.xlim = [-abs(corner[0]), abs(corner[0])]
+        self.ylim = [-abs(corner[1]), abs(corner[1])]
 
         if len(corner) == 3:
-            self.zlim = [0, abs(corner[2])]
+            self.zlim = [abs(corner[2]), abs(corner[2])]
 
         geo = gd.RegGeom([n_pts]*len(corner), [0]*len(corner), x1=corner1)
         print "[+] Positive Geomentry Successfully Made"
@@ -536,7 +594,7 @@ quantities[quantity]
 
         xx, yy, zz = self.get_coll_points(origin=bh_pos, c_path=c_path)
 
-        bbh_distance = np.linalg.norm(bh_pos-bh_pos2)
+        bbh_distance = np.linalg.norm(np.array(bh_pos)-np.array(bh_pos2))
 
 
         r_test = []
@@ -550,6 +608,7 @@ quantities[quantity]
         values = xx[:]
 
         flatten_values = []
+
 
         if test:
             return values, self.flatten_dict(values)
@@ -626,7 +685,11 @@ quantities[quantity]
         now use the outer coordinate - 5, which is garantied
         to lead to discontinuities...
         """
+
+
         if coord == np.inf or coord != coord:
+            coord = 1000
+            """
             if tp == "x":
                 coord = self.xlim[0] - 5
             elif tp == "y":
@@ -635,8 +698,10 @@ quantities[quantity]
                 coord = self.zlim[0] - 5
             else:
                 raise ValueError("%s is not an axis" %tp)
+            """
         elif coord == -np.inf:# or coord == -np.nan:
-            #print coord, self.xlim[1]
+            coord = -1000
+            """
             if tp == "x":
                 coord = self.xlim[1] + 5
             elif tp == "y":
@@ -645,7 +710,7 @@ quantities[quantity]
                 coord = self.zlim[1] + 5
             else:
                 raise ValueError("%s is not an axis" %tp)
-
+            """
         return self.desymmetrize_coord(coord)
 
     def desymmetrize_coord(self, coord):
@@ -1136,7 +1201,7 @@ quantities[quantity]
                 radius1 = 0
                 radius2 = 0
 
-
+            
             if test:
                 """
                 if self.nb_bodies == 1:
@@ -1171,7 +1236,7 @@ quantities[quantity]
                     filename = "%s/%s_%s_body2.txt" %(result_path,quantity, it)
                     self.write_flatten_values_to_file(flatten_values, it, 2, filename)
 
-                print "\n INFO: Time used: %.3f min.\n\n" %((time.time()- start_time)/60.)
+                print "\n INFO: Time used for %s: %.3f min.\n\n" %(quantities,(time.time()- start_time)/60.)
 
             if do_gyoto_converstion:
                 print "[~] LORENE is Writing BH1 to GYOTO File"
@@ -1198,26 +1263,30 @@ if __name__=="__main__":
     folder = "/mn/stornext/d13/euclid/daniehei/simulations/bbh_3D"
     #folder = "/mn/stornext/d13/euclid/daniehei/simulations/bbh"
     #folder = "/mn/stornext/d13/euclid/daniehei/simulations/tov_3D"
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/kerr"
 
     pickle_folder = "/mn/stornext/d13/euclid/daniehei/ETConverter/spline_pickles"
 
     quantity = "betax"
     filename = "%s.txt" %quantity
-    inter = ETInterpolater(folder, 2)
+    nb_bodies = 2
+
+    inter = ETInterpolater(folder, nb_bodies)
 
     #g = inter.make_geometry([-50, -50, -50], 400)
-    #g = inter.make_positive_geometry([-20,-20, -20], 400)
-    g = inter.make_positive_geometry([-25,-25, -25], 50)
+    g = inter.make_positive_geometry([-30,-30, -30], 100)
+    #g = inter.make_positive_geometry([-200,-200, -200], 800)
     it = 0
 
 
-    et_q = ETQuantities(g, it, folder, pickle_folder=pickle_folder, pickle=False)
+    et_q = ETQuantities_gridInterpolator(g, it, folder, pickle_folder=pickle_folder, pickle=False)
+    #et_q = ETQuantities(g, it, folder, pickle_folder=pickle_folder, pickle=False)
     #et_q.read_all()
-    #et_q.read("gxx")
-    #et_q.test_plot("gxx")
-    #et_q.test_plot("gyy")
+    #et_q.read("alp")
+    #et_q.test_plot("alp")
+    et_q.test_plot("alp")
     #exit()
-    inter.analyse_bbh(g, et_q, [it], quantities=["alp"], test=False)
+    #inter.analyse_bbh(g, et_q, [it], quantities=["alp"], test=False)
     exit()
 
     #q = inter.read_ET_quantity(quantity, g, it, dimentions=3, order=4)
