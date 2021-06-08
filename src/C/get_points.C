@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
 
     // Setup of a multi-domain grid (Lorene class Mg3d)
     // ------------------------------------------------
-    int nz = 6 ; 	// Number of domains
+    //int nz = 9; 	// Number of domains
     /*
     int nr = 25; 	// Number of collocation points in r in each domain
     int nt = 11 ; 	// Number of collocation points in theta in each domain
@@ -112,14 +112,58 @@ int main(int argc, char **argv) {
     
     
 
-    int nr_array[]  = {25, 25, 25, 25, 25, 25};
-    int nt_array[]  = {7, 7, 7, 7, 7, 7};
-    int np_array[]  = {4, 4, 4, 4, 4, 4};
-    */
     int nr_array[]  = {55, 55, 55, 85, 17, 11};
     int nt_array[]  = {11, 11, 11, 11, 11, 11};
     int np_array[]  = {52, 72, 72, 82, 42, 42};
+
+    int nr_array[]  = {105, 105, 105, 55, 27, 21};
+    int nt_array[]  = {21, 21, 21, 21, 21, 21};
+    int np_array[]  = {52, 72, 72, 82, 42, 42};
+    //int np_array[]  = {142, 142, 142, 122, 102, 62};
     // int size = nz*nr*np*nt
+
+
+
+    int nr_array[]  = {25, 25, 25, 25, 25, 25};
+    int nt_array[]  = {7, 7, 7, 7, 7, 7};
+    int np_array[]  = {4, 4, 4, 4, 4, 4};
+
+     int nr_array[]  = {35, 35, 35, 25, 17, 7, 7, 7, 7};
+    int nt_array[]  = {21, 21, 21, 21, 21, 11, 11, 11, 11};
+    int np_array[]  = {12, 12, 12, 12, 12, 12, 12, 12, 12};
+
+    int nr_array[]  = {25, 25, 25, 25, 17, 7, 7, 7, 7};
+    int nt_array[]  = {11, 11, 11, 11, 11, 11, 11, 11, 11};
+    int np_array[]  = {8, 8, 8, 8, 8, 8, 8, 8, 8};
+    */
+
+
+
+
+    /*
+    #######################################################
+        User defined variables  
+        Change to change conversion!
+    #######################################################
+    */
+    int nz = 6 ; 	// Number of domains
+
+    // Domain Resolutions
+    int nr_array[]  = {25, 25, 25, 25, 25, 25};
+    int nt_array[]  = {7,7,7, 7,7,7};
+    int np_array[]  = {4,4,4, 4,4,4};
+
+    //Type of Domain
+    int type_r[] = {RARE, FIN, FIN,FIN,FIN, UNSURR};
+
+    // Domain Limits
+    double r_limits[] = {0.,0.51, 1, 2, 4, 8, __infinity} ;
+    /*
+    #######################################################
+        Rest of code...
+    #######################################################
+    */
+
     int size = 0;
 
 
@@ -129,7 +173,8 @@ int main(int argc, char **argv) {
 
 
 
-    int type_r[] = {RARE, FIN, FIN, FIN, FIN, UNSURR};
+    //int type_r[] = {RARE, FIN, FIN, FIN, FIN, UNSURR};
+    //int type_r[] = {RARE, FIN, FIN, FIN, FIN, FIN, FIN, FIN, UNSURR};
     int symmetry_theta = SYM ; // symmetry with respect to the equatorial plane
     int symmetry_phi = NONSYM ; // no symmetry in phi
     bool compact = true ; // external domain is compactified
@@ -147,9 +192,22 @@ int main(int argc, char **argv) {
 
     // radial boundaries of each domain:
     //double r_limits[] = {0., 0.5, 1.5, 4, 8, 20, __infinity} ;
+    //double r_limits[] = {0., 0.51, 1., 2, 8, 50, __infinity} ;
     //double r_limits[] = {0., 0.51, 1., 2, 4, 8, __infinity} ;
-    double r_limits[] = {0., 2, 4., 6, 8, 20, __infinity} ;
+    //double r_limits[] = {0., 2, 4., 6, 8, 20, __infinity} ;
 
+
+    // This works well for kerr_hires!
+    //double r_limits[] = {0.,0.5,1,2, 4, 16, 64, 128, 256, __infinity} ;
+
+    //double r_limits[] = {0.,0.5,1,2, 8, 16, 64, 128, 256, __infinity} ;
+
+    //double r_limits[] = {0.,0.25,0.51,1, 4, 16, 64, 128, 256, __infinity} ;
+    //double r_limits[] = {0.,0.5,1,2, 4, 16, 32, 64, 128, __infinity} ;
+
+    //double r_limits[] = {0.,0.25,0.51,1, 2, 3, 4, 8, 16, __infinity} ;
+
+    //double r_limits[] = {0.,0.5,1,2, 3, 4, 6, 8, 16, __infinity} ;
 
 
 
@@ -194,6 +252,7 @@ int main(int argc, char **argv) {
         cout << z << endl;
     }else if(read_write == 1){
         int body;
+        
         sscanf(argv[5], "%d", &body);
 
         int it;
@@ -235,7 +294,7 @@ int main(int argc, char **argv) {
         printf("%s\n", "[+] Files Successfully Read");
 
         //Allocation of quantities:
-
+        
         // Lapse
         Scalar N(map) ;
         N.allocate_all() ;
@@ -310,7 +369,6 @@ int main(int argc, char **argv) {
 
 
 
-
         // Converts to spectral bases
         N.std_spectral_base();
         beta.std_spectral_base();
@@ -324,11 +382,11 @@ int main(int argc, char **argv) {
         Sym_tensor cart_gamma(map,COV,map.get_bvect_cart());
         cart_gamma = gamma;
 
-        double rmax=100;
-        des_meridian(gamma(2,2), 5, rmax, "N", 2) ;
+        double rmax=8;
+        //des_meridian(gamma(1,1), 5, rmax, "\gamma_1_1", 2) ;
 
         // Converts from cartesian to spherical
-        cout << map.get_bvect_spher() << endl;
+        //cout << map.get_bvect_spher() << endl;
         beta.change_triad(map.get_bvect_spher());
         gamma.change_triad(map.get_bvect_spher());
         curvature.change_triad(map.get_bvect_spher());
@@ -343,13 +401,18 @@ int main(int argc, char **argv) {
         gamma.set(3,2) = 0;
         gamma.set(2,3) = 0;
 
-        gamma.set(1,1) = 1;//cart_gamma(1,1);
-        gamma.set(2,2) = 1;//cart_gamma(2,2);
-        gamma.set(3,3) = 1;//cart_gamma(3,3);
+        gamma.set(1,1) = cart_gamma(1,1);
+        gamma.set(2,2) = cart_gamma(2,2);
+        gamma.set(3,3) = cart_gamma(3,3);
+
+        gamma.set(2,2) = gamma(1,1);
+        gamma.set(3,3) = gamma(1,1);
         */
 
-        
-        des_meridian(N, 0, rmax, "Gamma 1 1", 3) ;
+        des_meridian(gamma(1,1), 0.51, rmax, "g_{xx}", 3) ;
+        des_meridian(N, 0.5, rmax, "\\alpha", 4) ;
+        des_meridian(gamma(1,1) - pow((1+1/(2*map.r)),4), 0.52, rmax, "Simulated - Analytical g_{xx}", 5) ;
+        des_meridian(N - (1-1/(2*map.r))/(1+1/(2*map.r)), 0.52, rmax, "Simulated - Analytical \\alpha", 6) ;
         
         Metric metric(map.flat_met_spher());
         metric = gamma;
@@ -360,10 +423,11 @@ int main(int argc, char **argv) {
         //double rmax=8;
         //des_meridian(gamma(1,1), 1, rmax, "Gamma", 1) ;
         
-        des_coupe_z(N, 1., 4, "Lapse") ;
+        des_coupe_z(gamma(1,1), 1, nz-1, "g_{xx}") ;
+        des_coupe_z(N, 1, nz-1, "\\alpha") ;
 
         arrete() ;
-        */
+        
 
         // Saves to Gyoto Readable File
         /*Make correct file name... */
