@@ -357,7 +357,7 @@ class ETInterpolater:
         plt.show()
 
 
-    def get_values_at_coll_points(self, interpolated_quantity, c_path="../../../C/", smooth=True, bh_pos=[0,0,0], bh_rad=0,bh_pos2=[0,0,0], bh_rad2=0, scaling_factor=4.0, test=False):
+    def get_values_at_coll_points(self, interpolated_quantity, c_path="../../C/", smooth=True, bh_pos=[0,0,0], bh_rad=0,bh_pos2=[0,0,0], bh_rad2=0, scaling_factor=4.0, test=False):
         """
         One of the main functions of the module. This function takes in a interpolation
         function of a quantity. It will then use LORENE to find the collocation points.
@@ -638,7 +638,7 @@ quantities[quantity]
         #np.savetxt(file, np.array(values))
 
 
-    def LORENE_read(self, filename, c_path="../../../C/", origin=[0,0,0], body=1, it=0):
+    def LORENE_read(self, filename, c_path="../../C/", origin=[0,0,0], body=1, it=0):
         """
         Function responsible of communicating with the C code, which will read
         the flatten array, make the spectral transformation and save the
@@ -678,7 +678,7 @@ quantities[quantity]
 
 
 
-    def get_coll_points(self,c_path="../../../C/", origin=[0,0,0], body=1, it=0):
+    def get_coll_points(self,c_path="../../C/", origin=[0,0,0], body=1, it=0):
         """
         Function responsible of communicating with the C code to get the
         collocation points, then make the output of the C code to three
@@ -719,8 +719,8 @@ quantities[quantity]
         else:
             print "[+] LORENE Successfully Gave the Coll Points"
 
-        #with open("printout.txt","w") as f:
-        #    f.write(output)
+        with open("printout.txt","w") as f:
+            f.write(output)
         #print output
         x_dicts, y_dicts, z_dicts = self.clean_coll_points_xyz(output)
         return x_dicts, y_dicts, z_dicts
@@ -944,7 +944,7 @@ quantities[quantity]
 
 
 
-    def analyse_bbh(self, geometry, ETquantities, iterations, c_path="../../../C/", result_path="./", do_gyoto_converstion=True, quantities=[], test=False, split=True, scaling_factor=4.0):
+    def analyse_bbh(self, geometry, ETquantities, iterations, c_path="../../C/", result_path="./", do_gyoto_converstion=True, quantities=[], test=False, split=True, scaling_factor=4.0):
         """
         The main function of the code. This will read and interpolate all quantities,
         get the collocation points from the C code, clean it up,
@@ -1061,7 +1061,7 @@ quantities[quantity]
         print "[+] Done in %.3f min!" %((time.time()- start_time)/60.)
 
 
-    def _make_analytical_metric(self, analytical_function, c_path="../../../C/", result_path="./", do_gyoto_converstion=True):
+    def _make_analytical_metric(self, analytical_function, c_path="../../C/", result_path="./", do_gyoto_converstion=True):
         """
         Will do a conversion of analytical metrics. Do not use this directly,
         use make_schwarzschild_isotropic or make_minkowski.
@@ -1190,7 +1190,7 @@ quantities[quantity]
             return lambda x : 0
 
         
-    def make_minkowski(self, c_path="../../../C/", result_path="./", do_gyoto_converstion=True):
+    def make_minkowski(self, c_path="../../C/", result_path="./", do_gyoto_converstion=True):
         """
         Sets ut and runs a conversion of an analytical Minkowski metric
 
@@ -1206,7 +1206,7 @@ quantities[quantity]
         analytical_function = self.get_minkowski_component
         self._make_analytical_metric(analytical_function, c_path, result_path, do_gyoto_converstion)
 
-    def make_schwarzschild_isotropic(self, c_path="../../../C/", result_path="./", do_gyoto_converstion=True):
+    def make_schwarzschild_isotropic(self, c_path="../../C/", result_path="./", do_gyoto_converstion=True):
         """
         Sets ut and runs a conversion of an analytical Schwarzschild metric
 
