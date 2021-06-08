@@ -10,6 +10,11 @@ import numpy as np
 
 """
 TODO:
+
+- !!! Fix problem with get_points and reading of parameterfile
+    - It seems that it does not get that there are a larger r than 20...
+
+
 - [~] Create argpasers so the user can start new or continue old conversion, or go final gyoto_conversion
 - Make so analyze_bbh used the paths from the parameter file
 - Create function to check if more quantities have been added to already existing conversion
@@ -26,6 +31,8 @@ TODO:
 - Implement non positive geometry
 
 - Make the code use all the iterations...
+
+- Check if the r_limit numbers are correct
 """
 
 class ParameterReader:

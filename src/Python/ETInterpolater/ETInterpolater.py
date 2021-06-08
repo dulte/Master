@@ -17,7 +17,14 @@ from postcactus.simdir import SimDir
 from postcactus import visualize as viz
 from postcactus import grid_data as gd
 
-from scipy import ndimage
+from scipy import ndimage, interpolate
+
+import matplotlib.colors as colors
+import seaborn as sns
+
+sns.set_style("darkgrid")
+plt.rcParams.update({"font.size": 30})
+
 
 
 """
@@ -36,57 +43,265 @@ TODO:
 
 
 class ReadQuantities:
-    def __init__(self, geometries, iteration, simulation_folder,  quantity_names=[], pickle=True, pickle_folder="", interpolation_type="linear"):
-        if type(interpolation_type) == list:
-            if len(interpolation_type) != len(geometries):
-                raise ValueError("Length of geometeries does not mach that of the interpolation types")
-            else:
-                self.interpolation_type = interpolation_type
-        else:
-            self.interpolation_type = [interpolation_type]*len(geometries)
-
+    def __init__(self, geometries, iteration, simulation_folder,  quantity_names=[], pickle=True, pickle_folder="", linear=False, limits=None):
         self.quantity_instances = []
-        self.geometries = geometries
-        self.limits = [abs(g.x1()[0]) for g in self.geometries]
+        self.limits = None
 
-        self.interpolation_type = [x for _,x in sorted(zip(self.limits, self.interpolation_type))]
-        self.geometries = [x for _,x in sorted(zip(self.limits, geometries))]
+        if geometries == None or geometries[0] == None:
+            self.geometries = None
+            self.quantity_instances.append(ETQuantities(self.geometries, iteration, simulation_folder, quantity_names, pickle, pickle_folder))
 
-        for i,g in enumerate(self.geometries):
-            if self.interpolation_type[i] == "linear":
-                self.quantity_instances.append(ETQuantities_gridInterpolator(g, iteration, simulation_folder, quantity_names, pickle, pickle_folder))
+            print "[+] Ready to Read Full Grid, with a None geometry"
+        else:
+            self.geometries = geometries
+            self.limits = [abs(g.x1()[0]) for g in self.geometries]
+            
+
+            self.geometries = [x for _,x in sorted(zip(self.limits, geometries))]
+            for g in self.geometries:
+                if linear:
+                    self.quantity_instances.append(ETQuantities_gridInterpolator(g, iteration, simulation_folder, quantity_names, pickle, pickle_folder))
+                else:
+                    
+                    self.quantity_instances.append(ETQuantities(g, iteration, simulation_folder, quantity_names, pickle, pickle_folder))
+            
+            if limits is None or len(limits) != len(self.limits):
+                self.limits = sorted(self.limits)
             else:
-                self.quantity_instances.append(ETQuantities(g, iteration, simulation_folder, quantity_names, pickle, pickle_folder))
+                self.limits = limits
+        
+            print "[+] Ready to Read %s Grids, with the Radii %s" %(len(self.limits), self.limits)
 
-
-        self.limits = sorted(self.limits)
-
-        print "[+] Ready to Read %s Grids, with the Radii %s" %(len(self.limits), self.limits)
-
-    
 
     def read(self, name):
         for i, q in enumerate(self.quantity_instances):
-            print "[~] Starting to Read %s on Grid with geometry %s" %(name,self.geometries[i])
+            
+            if self.geometries == None or len(self.geometries) == 1:
+                print "[~] Starting to Read %s on Grid with None geometry" %name
+            else:
+                print "[~] Starting to Read %s on Grid with Corner %s" %(name,self.geometries[i].x1())
 
-            q.read(name)
+            self.quantity_instances[i].read(name)
 
             print "[+] Done Reading"
         
     
-    def test_plot(self, quantiy="alp"):
-        for q in self.quantity_instances:
-            q.test_plot(quantiy)
+    def test_plot(self, quantity="alp",binary=False):
+        """
+        A simple function to test if the module is able to read and interpolate
+        a given quantity. The result of the xy plane is then plotted as a
+        pcolormesh.
+
+        Parameters
+        ----------
+        quantity : str
+            The quantity the user wants to test plot.
+
+        """
+
+        self.read(quantity)
+        """
+        try:
+            
+            self.read(quantity)
+        except:
+            raise ValueError("[-] Quantity %s not found" %quantity)
+        """
+        n = 200
+        end = 12#20
+        q_inter = np.zeros((n,n))
+        q_diff = np.zeros((n,n))
+        one_dim_plot = np.zeros((n,3))
+        x = np.linspace(-end, end, n)
+        y = np.linspace(-end, end, n)
+
+        thetas = np.linspace(0,2*np.pi, n)
+        n_r = 400
+        rs = np.linspace(.5, 250, n_r)
+
+        contours = np.zeros((n, n_r))
+
+    
+        #M = 1.0
+        M = 0.47656
+        
+        r_sch = 2*M
+
+        name_tag = quantity
+        if quantity == "alp":
+            name_tag = r"$\alpha$"
+        elif quantity == "gxx":
+            name_tag = r"$g_{xx}$"
+
+        for i,r in enumerate(rs):
+            for j,theta in enumerate(thetas):
+                c = np.array([abs(r*np.cos(theta)), (r*np.sin(theta)),0])
+                contours[j,i] = self(c)
+
+
+        for i in range(n):
+            one_dim_plot[i,0] = self([abs(x[i]), 0, 0])
+            one_dim_plot[i,1] = self([0,abs(y[i]), 0])
+            if quantity == "gxx":
+                if binary:
+                    r1 = np.abs(3-x[i])
+                    r2 = np.abs(-3-x[i])
+                    one_dim_plot[i,2] = self([abs(x[i]), 0, 0]) - 0.5*(1+r_sch/(4*abs(r2)))**4 - 0.5*(1+r_sch/(4*abs(r1)))**4
+                else:
+                    one_dim_plot[i,2] = self([abs(x[i]), 0, 0]) - (1+r_sch/(4*abs(x[i])))**4
+                
+            elif quantity == "alp":
+                one_dim_plot[i,2] = self([abs(x[i]), 0, 0]) - (1-r_sch/abs(4*x[i]))/(1+r_sch/abs(4*x[i]))
+                
+
+            
+
+            for j in range(n):
+                input = np.array([abs(x[i]), abs(y[j]),0])
+                R = sqrt(x[i]**2 + y[j]**2)
+                
+                q_inter[j,i] = self(input)
+                if quantity == "gxx":
+                    q_diff[j,i] = q_inter[j,i] - (1+r_sch/(4*R))**4
+                elif quantity == "alp":
+                    q_diff[j,i] = q_inter[j,i] - (1-r_sch/abs(4*R))/(1+r_sch/abs(4*R))
+
+
+        plt.pcolormesh(x,y,q_inter)
+        plt.colorbar(label=name_tag)
+        plt.xlabel("x")
+        plt.ylabel("y")
+        plt.title("Intesity Map of "+name_tag)
+        plt.show()
+
+        plt.contour(x,y,q_inter, 20)
+        plt.xlabel("x")
+        plt.ylabel("y")
+        plt.title("Contour of "+name_tag)
+        plt.show()
+
+        plt.plot(x, one_dim_plot[:,0])
+        #plt.plot(y, one_dim_plot[:,1])
+        if quantity == "gxx":
+            plt.title(r"$g_{xx}$")
+            plt.ylabel(r"$g_{xx}$")
+        elif quantity == "alp":
+            plt.title(r"$\alpha$")
+            plt.ylabel(r"$\alpha$")
+        plt.ylim(-1,10)
+        plt.xlabel("r")
+        plt.show()
+
+
+        np.savetxt("%s_x_none.txt" %quantity, x)
+        np.savetxt("%s_quantity_none.txt" %quantity, one_dim_plot[:,0])
+
+        """
+
+        plt.plot(x, one_dim_plot[:,0])
+        plt.plot(y, one_dim_plot[:,1])
+        if quantity == "alp":
+            plt.plot(x, (1-1/(2*np.abs(x)))/(1+1/(2*np.abs(x))))
+        elif quantity == "gxx":
+            plt.plot(x, (1+r_sch/(4*np.abs(x)))**4)
+        
+        plt.ylim(-1,10)
+        plt.show()
+
+
+        mean_diff = np.zeros(n_r)
+        max_diff = np.zeros(n_r)
+        for i in range(n_r):
+            #norm_value = abs(contours[:,i]-(np.mean(contours[:,i])))/np.mean(contours[:,i])
+            if quantity == "gxx":
+                norm_value = abs(contours[:,i]-(1+r_sch/(4*abs(rs[i])))**4)
+            elif quantity == "alp":
+                norm_value = abs(contours[:,i]-(1-r_sch/abs(4*rs[i]))/(1+r_sch/abs(4*rs[i])))
+            mean_diff[i] = np.mean(norm_value)
+            max_diff[i] = np.max(norm_value)
+
+            plt.plot(thetas,norm_value,label="r=%.2f"%rs[i])
+        plt.legend()
+        plt.show()
+
+
+        np.save("r_ET_data", rs)
+        np.save("mean_diff_ET_data", mean_diff)
+        plt.semilogy(rs, mean_diff)
+        plt.title(r"Mean over $\theta$ of $\epsilon(r, \theta) = |g_{xx}^{simulated}-g_{xx}^{analytical}|$")
+        plt.xlabel("r")  
+        plt.ylabel(r"$mean_\theta (\epsilon(r, \theta))$")  
+        plt.show()
+        
+        plt.semilogy(rs, max_diff)    
+        plt.title(r"Max over $\theta$ of $\epsilon(r, \theta) = |g_{xx}^{simulated}-g_{xx}^{analytical}|$")
+        plt.xlabel("r")  
+        plt.ylabel(r"$max_\theta (\epsilon(r, \theta))$")
+        plt.show()
+
+        plt.pcolormesh(x,y,np.abs(q_diff), norm=colors.LogNorm())
+        plt.colorbar(label=name_tag)
+        if quantity == "gxx":
+            plt.title(r"$|g_{xx}^{simulated}-g_{xx}^{analytical}|$")
+        elif quantity == "alp":
+            plt.title(r"$|\alpha^{simulated}-\alpha^{analytical}|$")
+        plt.show()
+
+        plt.contour(x,y,np.abs(q_diff),norm=colors.LogNorm())
+        if quantity == "gxx":
+            plt.title(r"$|g_{xx}^{simulated}-g_{xx}^{analytical}|$")
+        elif quantity == "alp":
+            plt.title(r"$|\alpha^{simulated}-\alpha^{analytical}|$")
+        plt.show()
+        
+        """
+
+        if quantity == "gxx" or quantity == "alp":
+            """
+            plt.plot(x, one_dim_plot[:,2])
+            plt.ylim(-1,0.5)
+            plt.show()
+            """
+
+            plt.semilogy(x[1:-1], np.abs(one_dim_plot[1:-1,2]))
+            plt.xlabel("radius")
+            plt.ylabel("|Simulated-Analytical|")
+            plt.title("|Simulated-Analytical| for "+name_tag)
+            print np.mean(np.abs(one_dim_plot[1:-1,2]))
+            print np.max(np.abs(one_dim_plot[1:-1,2]))
+
+
+            
+            print "Mean: " + str(np.mean( np.abs( one_dim_plot[np.abs(x)>0.5,2])[1:-1] ))
+            print "Max: " + str(np.max( np.abs( one_dim_plot[np.abs(x)>0.5,2])[1:-1] ))
+
+            plt.show()
+
+
+    def _bound(self, val, axis):
+        if axis != "y":
+            return abs(val)
+        else:
+            return val
+
+            
+
 
     def __call__(self, coords):
-        for i,q in self.quantity_instances:
-            limit = self.limits[i]
-            if coords[0] > limit or coords[1] > limit or coords[2] > limit:
-                continue
-            else:
-                return q(coords)
+
         
-        return self.quantity_instances[-1](coords)
+
+        if self.geometries == None:
+            return self.quantity_instances[0](coords)
+        else:
+            for i,q in enumerate(self.quantity_instances):
+                limit = self.limits[i]
+                if coords[0] > limit or coords[1] > limit or coords[2] > limit:
+                    continue
+                else:  
+                    return self.quantity_instances[i](coords)
+            
+            return self.quantity_instances[-1](coords)
 
 
 
@@ -112,14 +327,19 @@ class ETQuantities(object):
         self.pickle = pickle
 
         self.loaded_spline = None
-
-        corner = self.geo.x1()
-        self.folder = pickle_folder
-        self.filename = "et_quantities_%d_%d_%d" %(corner[0], corner[1], corner[2])
+        if not(geometry is None):
+            corner = self.geo.x1()
+            self.folder = pickle_folder
+            self.filename = "et_quantities_%d_%d_%d" %(corner[0], corner[1], corner[2])
+        else:
+            self.folder = ""
+            self.filename = ""
 
     def read(self, name):
         start_time = time.time()
         full_path = "%s/%s_%s" %(self.folder, name, self.filename)
+        self.name = name
+        
 
         if self._check_pickle(name):
             print "[~] Pickle Found. Reading Pickle."
@@ -129,9 +349,13 @@ class ETQuantities(object):
             print "[~] Pickle Not Found. Reading From ET Files."
 
             grid = self._read_quantity(name, self.geo, self.iteration)
-            self.loaded_spline = grid.spline(order=3, mode="nearest")
+            if self.geo is None:
+                self.loaded_spline = grid
+                #self.loaded_spline = self.interpolate_none_geo(grid)
+            else:
+                self.loaded_spline = grid.spline(order=3, mode="nearest")
 
-        if self.pickle == True and not os.path.exists(full_path):
+        if self.pickle == True and not os.path.exists(full_path) and not(self.geo is None):
             self.pickle_quantities(name)
 
         print "Read All Quantities in %s seconds" %(time.time()-start_time)
@@ -195,15 +419,77 @@ class ETQuantities(object):
                 raise ValueError("Quantity %s could not be read!" %quantity)
 
         elif dimentions == 3:
+            
+            
+
+
+            
             try:
+                
                 grid = self.sd.grid.xyz.read(quantity, iteration, geom=geometry, order=order)
+                
             except:
                 raise ValueError("Quantity %s could not be read!" %quantity)
+
+            
+            
         else:
             raise ValueError("Number of dimentions should be 2 or 3!")
 
         print "[+] %s Successfully Read" %quantity
         return grid
+
+    def interpolate_none_geo(self, grid):
+        """
+        points = []
+        values = []
+        grid_coords = grid.coords()
+
+        for i,compdata in enumerate(grid_coords):
+            for j,d in enumerate(compdata):
+                coords1d = d.coords1d()
+                l = len(coords1d[0])
+                
+                points += [[coords1d[0][k],coords1d[1][k],coords1d[2][k]] for k in range(l)]
+        for point in points:
+            values.append(grid(point))
+
+        
+        min_corner = 0
+        max_corner = 250
+        shape = 250
+        points = np.array(points)
+        values = np.array(values)
+        
+        points = np.where(np.abs(points)< 1e-10, 1e-10, points)
+        values = np.where(np.abs(values)< 1e-10, 1e-10, values)
+        
+        
+        #x = np.linspace(min_corner, max_corner, shape)
+        #y = np.linspace(min_corner, max_corner, shape)
+        #z = np.linspace(min_corner, max_corner, shape)
+
+        x = points[:,0]
+        y = points[:,1]
+        z = np.array(points[:,2]) + np.random.rand(len(x))*1e-8
+        """
+
+        # put the available x,y,z data as a numpy array
+        points = np.array([[ 27.827,  18.53 , -30.417], [ 24.002,  17.759, -24.782],[ 22.145,  13.687, -33.282], [ 17.627,  18.224, -25.197],[ 29.018,  18.841, -38.761], [ 24.834,  20.538, -33.012],[ 26.232,  22.327, -27.735], [ 23.017,  23.037, -29.23 ],[ 28.761,  21.565, -31.586], [ 26.263,  23.686, -32.766]])
+        # and put the moisture corresponding data values in a separate array:
+        values = np.array([0.205,  0.197,  0.204,  0.197,  0.212, 0.208,  0.204,  0.205, 0.211,  0.215])
+        request = np.array([[25, 0, -30], [27, 20, -32]])
+        print points.shape
+        print values.shape
+        data = interpolate.LinearNDInterpolator(points, values)
+        
+        #print(data(np.array([[10,11,10], [-1, 0, 0]])))
+        print(data(request))
+        exit()
+
+        return data#interpolate.RegularGridInterpolator((x,y,z), data, bounds_error=False, fill_value=None)
+
+
 
     def pickle_quantities(self, name):
         full_path = "%s/%s_%s" %(self.folder, name, self.filename)
@@ -231,18 +517,22 @@ class ETQuantities(object):
 
         """
 
+        
         try:
             q = self.read(quantity)
         except:
             raise ValueError("[-] Quantity %s not found" %quantity)
 
-        n = 300
-        end = 20
+        n = 100
+        end = 50
         q_inter = np.zeros((n,n))
+        one_dim_plot = np.zeros(n)
         x = np.linspace(-end, end, n)
         y = np.linspace(-end, end, n)
 
         for i in range(n):
+            one_dim_plot[i] = self([abs(x[i]), 0, 0])
+
             for j in range(n):
                 input = np.array([abs(x[i]), abs(y[j]),0])
 
@@ -256,6 +546,10 @@ class ETQuantities(object):
         plt.contour(x,y,q_inter, 20)
         plt.show()
 
+        plt.plot(x, one_dim_plot)
+        plt.ylim(-1,10)
+        plt.show()
+
 
     def __call__(self, coords, output=None):
 
@@ -263,6 +557,16 @@ class ETQuantities(object):
         q = self.loaded_spline
         if q is None:
             raise ValueError("[-] No Quantity Loaded")
+
+        if self.name in ["alp", "gxx", "gyy", "gzz"]:
+            if sqrt(coords[0]**2 + coords[1]**2 + coords[2]**2) > 280:
+                return 1
+            #elif sqrt(coords[0]**2 + coords[1]**2 + coords[2]**2) < 0.0005:
+            #    return q([0.0005,0,0])
+
+
+        if self.geo == None:
+            return q(coords)
 
         if (len(coords) != len(q.data.shape)):
             raise ValueError('Dimension mismatch with sampling coordinates.')
@@ -279,6 +583,55 @@ class ETQuantities(object):
 
 
 
+
+class ETQuantities_gridInterpolator(ETQuantities):
+    def read(self, name):
+        start_time = time.time()
+        full_path = "%s/%s_%s" %(self.folder, name, self.filename)
+        self.name = name
+
+        if self._check_pickle(name):
+            print "[~] Pickle Found. Reading Pickle."
+            self.load_pickle(name)
+
+        else:
+            print "[~] Pickle Not Found. Reading From ET Files."
+
+            grid = self._read_quantity(name, self.geo, self.iteration)
+            self.loaded_spline = self._get_interpolator(grid)
+
+        if self.pickle == True and not os.path.exists(full_path):
+            self.pickle_quantities(name)
+
+        print "Read All Quantities in %s seconds" %(time.time()-start_time)
+        return self.quantities
+
+    def _get_interpolator(self, grid):
+
+        #shape = self.geo.shape()
+        
+        shape = grid.data.shape
+        min_corner = self.geo.x0()
+        max_corner = self.geo.x1()
+        
+        x = np.linspace(min_corner[0], max_corner[0], shape[0])
+        y = np.linspace(min_corner[1], max_corner[1], shape[1])
+        z = np.linspace(min_corner[2], max_corner[2], shape[2])
+
+        return interpolate.RegularGridInterpolator((x,y,z), grid.data, bounds_error=False, fill_value=None)
+
+    def __call__(self, coords):
+        """
+        best results is 200 and 1.5
+        """
+        
+        if self.name in ["alp", "gxx", "gyy", "gzz"]:
+            if sqrt(coords[0]**2 + coords[1]**2 + coords[2]**2) > 800:
+                return 1
+            #elif sqrt(coords[0]**2 + coords[1]**2 + coords[2]**2) < 1.5:
+            #    return 0
+        
+        return self.loaded_spline(coords)
 
 
 
@@ -422,6 +775,25 @@ class ETInterpolater:
         return geo
 
 
+    def make_semipositive_geometry(self, corner, n_pts):
+        if len(corner) > 3 or len(corner) < 2:
+            raise ValueError("Wrong Number of Corners! User 2 or 3!")
+
+        corner1 = [abs(i) for i in corner]
+        self.xlim = [-abs(corner1[0]), abs(corner[0])]
+        self.ylim = [-abs(corner1[1]), abs(corner[1])]
+
+        start_corner = [0, -abs(corner1[1])]
+
+        if len(corner) == 3:
+            self.zlim = [abs(corner[2]), abs(corner[2])]
+            start_corner.append(0)
+
+        geo = gd.RegGeom([n_pts]*len(corner), start_corner, x1=corner1)
+        print "[+] Geomentry Successfully Made"
+        return geo
+
+
 
 
     def make_positive_geometry(self, corner, n_pts):
@@ -456,11 +828,11 @@ class ETInterpolater:
             raise ValueError("Wrong Number of Corners! User 2 or 3!")
 
         corner1 = [abs(i) for i in corner]
-        self.xlim = [0, abs(corner[0])]
-        self.ylim = [0, abs(corner[1])]
+        self.xlim = [-abs(corner[0]), abs(corner[0])]
+        self.ylim = [-abs(corner[1]), abs(corner[1])]
 
         if len(corner) == 3:
-            self.zlim = [0, abs(corner[2])]
+            self.zlim = [abs(corner[2]), abs(corner[2])]
 
         geo = gd.RegGeom([n_pts]*len(corner), [0]*len(corner), x1=corner1)
         print "[+] Positive Geomentry Successfully Made"
@@ -591,7 +963,7 @@ quantities[quantity]
 
         xx, yy, zz = self.get_coll_points(origin=bh_pos, c_path=c_path)
 
-        bbh_distance = np.linalg.norm(bh_pos-bh_pos2)
+        bbh_distance = np.linalg.norm(np.array(bh_pos)-np.array(bh_pos2))
 
 
         r_test = []
@@ -606,6 +978,7 @@ quantities[quantity]
 
         flatten_values = []
 
+
         if test:
             return values, self.flatten_dict(values)
 
@@ -618,7 +991,7 @@ quantities[quantity]
                         z = zz[index][k][j][r]
 
 
-
+                        
                         inter_q = q([self.bound_coord(x, "x"),self.bound_coord(y, "y"),self.bound_coord(z, "z")])
 
                         if smooth:
@@ -681,7 +1054,11 @@ quantities[quantity]
         now use the outer coordinate - 5, which is garantied
         to lead to discontinuities...
         """
+
+
         if coord == np.inf or coord != coord:
+            coord = 50000
+            """
             if tp == "x":
                 coord = self.xlim[0] - 5
             elif tp == "y":
@@ -690,8 +1067,10 @@ quantities[quantity]
                 coord = self.zlim[0] - 5
             else:
                 raise ValueError("%s is not an axis" %tp)
+            """
         elif coord == -np.inf:# or coord == -np.nan:
-            #print coord, self.xlim[1]
+            coord = -50000
+            """
             if tp == "x":
                 coord = self.xlim[1] + 5
             elif tp == "y":
@@ -700,9 +1079,15 @@ quantities[quantity]
                 coord = self.zlim[1] + 5
             else:
                 raise ValueError("%s is not an axis" %tp)
+            """
 
         return self.desymmetrize_coord(coord)
-
+        """
+        if tp != "y":
+            return self.desymmetrize_coord(coord)
+        else:
+            return coord
+        """
     def desymmetrize_coord(self, coord):
         """
         Function for taking care of the symmetries used in Einstein Toolkit.
@@ -813,7 +1198,7 @@ quantities[quantity]
                 print_nb = i
                 if print_nb != print_nb:
                     print_nb = np.inf
-                f.write("%.5f " %print_nb)
+                f.write("%.10f " %print_nb)
 
         print "[+] File Successfully Written"
         #np.savetxt(file, np.array(values))
@@ -1191,7 +1576,7 @@ quantities[quantity]
                 radius1 = 0
                 radius2 = 0
 
-
+            
             if test:
                 """
                 if self.nb_bodies == 1:
@@ -1226,7 +1611,7 @@ quantities[quantity]
                     filename = "%s/%s_%s_body2.txt" %(result_path,quantity, it)
                     self.write_flatten_values_to_file(flatten_values, it, 2, filename)
 
-                print "\n INFO: Time used: %.3f min.\n\n" %((time.time()- start_time)/60.)
+                print "\n INFO: Time used for %s: %.3f min.\n\n" %(quantities,(time.time()- start_time)/60.)
 
             if do_gyoto_converstion:
                 print "[~] LORENE is Writing BH1 to GYOTO File"
@@ -1281,15 +1666,15 @@ quantities[quantity]
 
     def _non_zero_schwarzschild_alp(self, x):
         r = sqrt(x[0]**2 + x[1]**2 + x[2]**2)
-        if abs(r) < 0.5:
-            return 1
-        return (1-1/(2*r))/(1+1/(2*r))
+        if abs(r) < 0.5*1e-6:
+            r = 0.5*1e-6
+        return (1-1/(2*r))/(1+1/(2*r)) #+ np.random.rand()/10**(4)
         
     def _non_zero_schwarzschild_gamma(self, x):
         r = sqrt(x[0]**2 + x[1]**2 + x[2]**2)
-        if abs(r) < 0.5:
-            return 1
-        return (1+1/(2*r))**4
+        if abs(r) < 0.5*1e-6:
+            r = 0.5*1e-6
+        return (1+1/(2*r))**4 #+ np.random.rand()/10**(4)
 
 
     def get_schwarzschild_isotropic_compinents(self, quantity):
@@ -1318,64 +1703,73 @@ quantities[quantity]
 if __name__=="__main__":
     #folder = "/media/dulte/Seagate Expansion Drive/Storage/Master/ET_data/GW150914_28"
     #folder = "/media/dulte/Seagate Expansion Drive/Storage/Master/ET_data/tov_ET_11"
-    folder = "/mn/stornext/d13/euclid/daniehei/simulations/bbh_3D"
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/bh_3d"
     #folder = "/mn/stornext/d13/euclid/daniehei/simulations/bbh"
     #folder = "/mn/stornext/d13/euclid/daniehei/simulations/tov_3D"
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/tov_large"
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/kerr_large"
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/schwarzschild_large"
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/kerr_hires"
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/kerr_higherres"
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/kerr_hires_center"
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/kerr_hires_one"
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/kerr_hires_center_hiphi"
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/kerr_analytic"
+
+
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/kerr"
+    folder = "/mn/stornext/d13/euclid/daniehei/simulations/bbh_3D"
+    #folder = "/mn/stornext/d13/euclid/daniehei/simulations/analytical_schwarz_cleaned_dx4"
+
+
+
 
     pickle_folder = "/mn/stornext/d13/euclid/daniehei/ETConverter/spline_pickles"
 
     ### For making minkowski space
-
-    inter = ETInterpolater("", 2)
-    inter.xlim = [-1000,1000]
-    inter.ylim = [-1000,1000]
-    inter.zlim = [-1000,1000]
+    inter = ETInterpolater("", 1)
+    inter.xlim = [-10000,10000]
+    inter.ylim = [-10000,10000]
+    inter.zlim = [-10000,10000]
     #inter.make_minkowski(do_gyoto_converstion=False)
     inter.make_schwarzschild_isotropic(do_gyoto_converstion=False)
     exit()
+    """
+    """
 
+    #quantity = "betay"
+    #filename = "%s.txt" %quantity
+    nb_bodies = 1
 
-    quantity = "betax"
-    filename = "%s.txt" %quantity
-    inter = ETInterpolater(folder, 2)
-
-    #g = inter.make_geometry([-50, -50, -50], 400)
-    #g = inter.make_positive_geometry([-20,-20, -20], 400)
-    g = inter.make_positive_geometry([-25,-25, -25], 50)
+    inter = ETInterpolater(folder, nb_bodies)
     it = 0
+    #g = inter.make_positive_geometry([-30,-30, -30], 30)
+    """
+    g0 = inter.make_positive_geometry([-10,-10, -10], 100)
+    g15 = inter.make_positive_geometry([-20,-20, -20], 100)
+    g1 = inter.make_positive_geometry([-100,-100, -100], 100)
+    g2 = inter.make_positive_geometry([-300,-300, -300], 100)
+    limits = [5,10, 50,250]
+    et_q = ReadQuantities([g0,g15,g1,g2], it, folder, pickle_folder=pickle_folder, pickle=False, linear=True, limits=limits)
+    """
+    """
+    """
+    #g = inter.make_positive_geometry([-300,-300, -300], 300)
+    g = None
+    limits = [250]
+    et_q = ReadQuantities([g], it, folder, pickle_folder=pickle_folder, pickle=False, linear=True, limits=limits)
 
 
-    et_q = ETQuantities(g, it, folder, pickle_folder=pickle_folder, pickle=False)
-    #et_q.read_all()
-    #et_q.read("gxx")
-    #et_q.test_plot("gxx")
-    #et_q.test_plot("gyy")
+    #et_q = ETQuantities(g, it, folder, pickle_folder=pickle_folder, pickle=False)
+    #et_q = ETQuantities_gridInterpolator(g, it, folder, pickle_folder=pickle_folder, pickle=False)
+
+    et_q.test_plot("gxx", binary=True)
     #exit()
-    inter.analyse_bbh(g, et_q, [it], quantities=["alp"], test=False)
+    #inter.analyse_bbh(g, et_q, [it], quantities=["alp"], test=False)
     exit()
 
-    #q = inter.read_ET_quantity(quantity, g, it, dimentions=3, order=4)
-
-    #inter.make_test_plot("gxx")
+  
     exit()
-    values, flatten_values = inter.get_values_at_coll_points(q, test=False)
-    inter.write_flatten_values_to_file(flatten_values, it, 1, filename)
-    inter.LORENE_read(filename)
-
-
-
-    nz = 3
-    nr = 8
-    nt = 5
-    np = 7
-
-
-
-    d = 0
-    k = 1
-    j = 3
-    r = 4
-    print(values[d][k][j][r])
     """
     index = d*(nr*nt*np) + k*nt*np + j*np + r
     print index, len(flatten_values), nz*nr*nt*np, (nz-1)*(nr*nt*np) + (nr-1)*nt*np + (nt-1)*np + np-1
@@ -1386,3 +1780,39 @@ if __name__=="__main__":
 
     #print(inter.get_coll_points()[0])
     """
+
+
+
+
+
+"""
+dx | RAM | Worked | Mean Error | Max Error
+
+
+1  | 388.207 GByte | No |   |
+
+1.5| 131.777 GByte | No |
+
+1.875| 77.955 GByte |  Yes | 6.971825901943971e-05 | 0.0008034376108430052
+
+2  | 65.708 GByte |  Yes | 7.450341308336404e-05 | 0.0009293562186072357
+
+2.5| 37.045 GByte |  Yes | 0.00011172354624641227 | 0.0012555730776417917
+
+3  | 23.927 GByte |  Yes | 0.00015018127776903771 | 0.0020727476781523535
+
+4  | 12.728 GByte |  Yes | 0.0002152858966590524 | 0.003665644172405891
+
+
+Large:
+
+dx | RAM | Worked
+
+2  | 155.498 GByte |  No
+
+2.5| 83.485 GByte |  Yes
+
+3  | 23.927 GByte |  Yes
+
+4  | 12.728 GByte |  Yes
+"""

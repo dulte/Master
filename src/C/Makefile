@@ -16,7 +16,7 @@ EXE1 = $(SRC1:.C=)
 
 $(EXE1): $(OBJ1) $(LIBLOR)
 	$(CXX) -o $@ $(CXXFLAGS_G) $(OBJ1) $(LIB_G) $(LIB_LAPACK) \
-					$(LIB_GSL) $(LIB_PGPLOT)  $(LIB_CXX)
+					$(LIB_GSL)  $(LIB_CXX)
 	cp $(HOME_LORENE)/Visu/OpenDX/visu_scalar_box.net .
 	cp $(HOME_LORENE)/Visu/OpenDX/visu_section.net .
 	cp $(HOME_LORENE)/Visu/OpenDX/visu_vector3d.net .
