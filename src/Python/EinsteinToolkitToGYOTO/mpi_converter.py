@@ -1,4 +1,6 @@
-from ETInterpolater import ETInterpolater, ETQuantities, ETQuantities_gridInterpolator, ReadQuantities
+#from ETInterpolater import ETInterpolater, ETQuantities, ETQuantities_gridInterpolator, ReadQuantities
+from ET2G.ETInterpolater import ETInterpolater
+from ET2G.ReadQuantities import ReadQuantities
 from mpi4py import MPI
 from time import sleep
 
