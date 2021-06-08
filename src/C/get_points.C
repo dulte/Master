@@ -98,8 +98,8 @@ int main(int argc, char **argv) {
 
     // Setup of a multi-domain grid (Lorene class Mg3d)
     // ------------------------------------------------
-    int nz = 6 ; 	// Number of domains
     /*
+    int nz = 9 ; 	// Number of domains
     int nr = 25; 	// Number of collocation points in r in each domain
     int nt = 11 ; 	// Number of collocation points in theta in each domain
     int np = 42 ; 	// Number of collocation points in phi in each domain
@@ -110,34 +110,82 @@ int main(int argc, char **argv) {
 
 
     /*
+
+
+
+
     int nr_array[]  = {135, 135, 135, 135, 67, 57};
     int nt_array[]  = {51, 51, 51, 51, 51, 31};
     int np_array[]  = {142, 142, 142, 122, 102, 62};
 
 
 
+    int nr_array[]  = {105, 105, 105, 55, 27, 21};
+    int nt_array[]  = {21, 21, 21, 21, 21, 21};
+    int np_array[]  = {52, 72, 72, 82, 42, 42};
 
-
-
-    int nr_array[]  = {25, 25, 25, 25, 25, 25};
-    int nt_array[]  = {7, 7, 7, 7, 7, 7};
-    int np_array[]  = {4, 4, 4, 4, 4, 4};
-    */
     int nr_array[]  = {55, 55, 55, 85, 17, 11};
     int nt_array[]  = {11, 11, 11, 11, 11, 11};
     int np_array[]  = {52, 72, 72, 82, 42, 42};
 
     // int size = nz*nr*np*nt
+
+    int nr_array[]  = {25, 25, 25, 25, 25, 25};
+    int nt_array[]  = {7, 7, 7, 7, 7, 7};
+    int np_array[]  = {4, 4, 4, 4, 4, 4};
+
+
+
+    //Used for first Functional Results (kerr_hires_one)
+    int nr_array[]  = {35, 35, 35, 25, 17, 7, 7, 7, 7};
+    int nt_array[]  = {21, 21, 21, 21, 21, 11, 11, 11, 11};
+    int np_array[]  = {12, 12, 12, 12, 12, 12, 12, 12, 12};
+
+    int nr_array[]  = {25, 25, 25, 25, 17, 7, 7, 7, 7};
+    int nt_array[]  = {11, 11, 11, 11, 11, 11, 11, 11, 11};
+    int np_array[]  = {8, 8, 8, 8, 8, 8, 8, 8, 8};
+
+    */
+
+
+
+    /*
+    #######################################################
+        User defined variables  
+        Change to change conversion!
+    #######################################################
+    */
+    int nz = 6 ; 	// Number of domains
+
+    // Domain Resolutions
+    int nr_array[]  = {25, 25, 25, 25, 25, 25};
+    int nt_array[]  = {7,7,7, 7,7,7};
+    int np_array[]  = {4,4,4, 4,4,4};
+
+    //Type of Domain
+    int type_r[] = {RARE, FIN, FIN,FIN,FIN, UNSURR};
+
+    // Domain Limits
+    double r_limits[] = {0.,0.51, 1, 2, 4, 8, __infinity} ;
+
+    /*
+    #######################################################
+        Rest of code...
+    #######################################################
+    */
+
+
+
+
     int size = 0;
-
-
     for(int j = 0; j < nz; j++){
       size += nr_array[j]*nt_array[j]*np_array[j];
     }
 
 
 
-    int type_r[] = {RARE, FIN, FIN, FIN, FIN, UNSURR};
+    //int type_r[] = {RARE, FIN, FIN, FIN, FIN, UNSURR};
+    //int type_r[] = {RARE, FIN,FIN, FIN, FIN, FIN, FIN, FIN, UNSURR};
     int symmetry_theta = SYM ; // symmetry with respect to the equatorial plane
     int symmetry_phi = NONSYM ; // no symmetry in phi
     bool compact = true ; // external domain is compactified
@@ -156,7 +204,19 @@ int main(int argc, char **argv) {
     // radial boundaries of each domain:
     //double r_limits[] = {0., 0.5, 1.5, 4, 8, 20, __infinity} ;
     //double r_limits[] = {0., 0.51, 1., 2, 4, 8, __infinity} ;
-    double r_limits[] = {0., 2, 4., 6, 8, 20, __infinity} ;
+    //double r_limits[] = {0., 0.51, 1., 2, 8, 50, __infinity} ;
+    //double r_limits[] = {0., 2, 4., 6, 8, 20, __infinity} ;
+
+    //double r_limits[] = {0.,0.25,0.51,1, 4, 16, 64, 128, 256, __infinity} ;
+    //double r_limits[] = {0.,0.5,1,2, 8, 16, 64, 128, 256, __infinity} ;
+    //double r_limits[] = {0.,0.5,1,2, 4, 16, 32, 64, 128, __infinity} ;
+
+    
+    //Used for first functional results(kerr_hires_one)
+    //double r_limits[] = {0.,0.25,0.51,1, 2, 3, 4, 8, 16, __infinity} ;
+
+    
+    //double r_limits[] = {0.,0.5,1,2, 3, 4, 6, 8, 16, __infinity} ;
 
 
 
@@ -332,8 +392,8 @@ int main(int argc, char **argv) {
         Sym_tensor cart_gamma(map,COV,map.get_bvect_cart());
         cart_gamma = gamma;
 
-        double rmax=100;
-        des_meridian(gamma(2,2), 5, rmax, "N", 2) ;
+        //double rmax=100;
+        //des_meridian(gamma(2,2), 5, rmax, "N", 2) ;
 
         // Converts from cartesian to spherical
         cout << map.get_bvect_spher() << endl;
@@ -355,7 +415,7 @@ int main(int argc, char **argv) {
         gamma.set(2,2) = 1;//cart_gamma(2,2);
         gamma.set(3,3) = 1;//cart_gamma(3,3);
         */
-
+        /*
         
         des_meridian(N, 0, rmax, "Gamma 1 1", 3) ;
         
