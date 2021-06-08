@@ -17,6 +17,12 @@
 #include "graphique.h"
 #include "utilitaires.h"
 
+/*
+TODO:
+    - Use get_bvect_cart() since this is read as cartesian!
+      Then use change_triad(map.get_bvect_spher())
+    -Fix compile error..
+*/
 
 using namespace Lorene ;
 double * get_flatten_values(int size, char*);
@@ -30,6 +36,117 @@ int main(int argc, char **argv) {
         cout << "Usage: program x_origin y_origin z_origin 0 (write to screen)/1 (read values from file) body iteration" << endl;
         exit(1);
     }
+
+
+
+    // Reads from parameterfile
+    /*
+    FILE* fp = fopen("lorene_parameters.txt", "r");
+    int line = 0;
+    char buf[255];
+    
+    int nz;
+
+    if (fgets(buf, sizeof(buf), fp) != NULL){
+        nz = atoi(buf);
+        cout << nz << endl;
+    }
+
+
+    int nr_array[nz];
+    int nt_array[nz];
+    int np_array[nz];
+    int type_r[nz];
+    double r_limits[nz+1];
+
+    double temp_holder[nz*4+1];
+    int temp_countr = 0;
+
+    while( fgets(buf, sizeof(buf), fp) != NULL){
+        char *tolken = strtok(buf, "\n"); 
+        //cout << tolken << endl;
+        char *token = strtok(tolken, " ");
+        while(token != NULL){
+            temp_holder[temp_countr++] = atof(token);
+            token = strtok(NULL, " ");
+        }
+    }
+
+    for(int i = 0; i<nz; i++){
+        nr_array[i] = temp_holder[i];
+    }
+    for(int i = 0; i<nz; i++){
+        nt_array[i] = temp_holder[nz+i];
+    }
+    for(int i = 0; i<nz; i++){
+        np_array[i] = temp_holder[2*nz+i];
+    }
+
+    for(int i = 0; i<nz+1; i++){
+        r_limits[i] = temp_holder[3*nz+i];
+    }
+
+    r_limits[nz] = __infinity;
+
+
+    type_r[0] = RARE;
+    type_r[nz-1] = UNSURR;
+    for(int i = 1; i < nz-1; i++){
+        type_r[i] = FIN;
+    }
+    */
+
+    // Setup of a multi-domain grid (Lorene class Mg3d)
+    // ------------------------------------------------
+    /*
+    int nz = 9 ; 	// Number of domains
+    int nr = 25; 	// Number of collocation points in r in each domain
+    int nt = 11 ; 	// Number of collocation points in theta in each domain
+    int np = 42 ; 	// Number of collocation points in phi in each domain
+
+    int nr_array[]  = {135, 135, 135, 135, 135, 67, 57};
+    int nt_array[]  = {51, 51, 51, 51, 51, 51, 31};
+    int np_array[]  = {142, 142, 142, 142, 122, 102, 62};
+
+
+    /*
+
+
+
+
+    int nr_array[]  = {135, 135, 135, 135, 67, 57};
+    int nt_array[]  = {51, 51, 51, 51, 51, 31};
+    int np_array[]  = {142, 142, 142, 122, 102, 62};
+
+
+
+    int nr_array[]  = {105, 105, 105, 55, 27, 21};
+    int nt_array[]  = {21, 21, 21, 21, 21, 21};
+    int np_array[]  = {52, 72, 72, 82, 42, 42};
+
+    int nr_array[]  = {55, 55, 55, 85, 17, 11};
+    int nt_array[]  = {11, 11, 11, 11, 11, 11};
+    int np_array[]  = {52, 72, 72, 82, 42, 42};
+
+    // int size = nz*nr*np*nt
+
+    int nr_array[]  = {25, 25, 25, 25, 25, 25};
+    int nt_array[]  = {7, 7, 7, 7, 7, 7};
+    int np_array[]  = {4, 4, 4, 4, 4, 4};
+
+
+
+    //Used for first Functional Results (kerr_hires_one)
+    int nr_array[]  = {35, 35, 35, 25, 17, 7, 7, 7, 7};
+    int nt_array[]  = {21, 21, 21, 21, 21, 11, 11, 11, 11};
+    int np_array[]  = {12, 12, 12, 12, 12, 12, 12, 12, 12};
+
+    int nr_array[]  = {25, 25, 25, 25, 17, 7, 7, 7, 7};
+    int nt_array[]  = {11, 11, 11, 11, 11, 11, 11, 11, 11};
+    int np_array[]  = {8, 8, 8, 8, 8, 8, 8, 8, 8};
+
+    */
+
 
 
     /*
@@ -67,16 +184,54 @@ int main(int argc, char **argv) {
 
 
 
+    //int type_r[] = {RARE, FIN, FIN, FIN, FIN, UNSURR};
+    //int type_r[] = {RARE, FIN,FIN, FIN, FIN, FIN, FIN, FIN, UNSURR};
     int symmetry_theta = SYM ; // symmetry with respect to the equatorial plane
     int symmetry_phi = NONSYM ; // no symmetry in phi
     bool compact = true ; // external domain is compactified
 
 
     // Multi-domain grid construction:
+    //Mg3d mgrid(nz, nr_array, type_r, nt_array, np_array, symmetry_theta, symmetry_phi, compact) ;
     Mg3d mgrid(nz, nr_array, type_r, nt_array, symmetry_theta, np_array, symmetry_phi, NULL) ;
 
     cout << mgrid << endl ;
 
+
+    // Setup of an affine mapping : grid --> physical space (Lorene class Map_af)
+    // --------------------------------------------------------------------------
+
+    // radial boundaries of each domain:
+    //double r_limits[] = {0., 0.5, 1.5, 4, 8, 20, __infinity} ;
+    //double r_limits[] = {0., 0.51, 1., 2, 8, 50, __infinity} ;
+    //double r_limits[] = {0., 0.51, 1., 2, 4, 8, __infinity} ;
+    //double r_limits[] = {0., 2, 4., 6, 8, 20, __infinity} ;
+
+
+    // This works well for kerr_hires!
+    //double r_limits[] = {0.,0.5,1,2, 4, 16, 64, 128, 256, __infinity} ;
+
+    //double r_limits[] = {0.,0.5,1,2, 8, 16, 64, 128, 256, __infinity} ;
+    //double r_limits[] = {0., 0.51, 1., 2, 8, 50, __infinity} ;
+    //double r_limits[] = {0., 2, 4., 6, 8, 20, __infinity} ;
+
+    //double r_limits[] = {0.,0.25,0.51,1, 4, 16, 64, 128, 256, __infinity} ;
+    //double r_limits[] = {0.,0.5,1,2, 8, 16, 64, 128, 256, __infinity} ;
+    //double r_limits[] = {0.,0.5,1,2, 4, 16, 32, 64, 128, __infinity} ;
+
+    
+    //Used for first functional results(kerr_hires_one)
+    //double r_limits[] = {0.,0.25,0.51,1, 2, 3, 4, 8, 16, __infinity} ;
+
+    
+    //double r_limits[] = {0.,0.5,1,2, 3, 4, 6, 8, 16, __infinity} ;
+
+    //double r_limits[] = {0.,0.25,0.51,1, 4, 16, 64, 128, 256, __infinity} ;
+    //double r_limits[] = {0.,0.5,1,2, 4, 16, 32, 64, 128, __infinity} ;
+
+    //double r_limits[] = {0.,0.25,0.51,1, 2, 3, 4, 8, 16, __infinity} ;
+
+    //double r_limits[] = {0.,0.5,1,2, 3, 4, 6, 8, 16, __infinity} ;
 
 
 
@@ -110,10 +265,6 @@ int main(int argc, char **argv) {
 
     //sscanf(argv[5], "%s", filename);
 
-    /*
-        This part is for getting the collocation points
-    */
-
     if(read_write == 0){
         cout << "+" << endl;
         cout << x << endl;
@@ -123,20 +274,6 @@ int main(int argc, char **argv) {
 
         cout << "+" << endl;
         cout << z << endl;
-
-
-
-
-
-
-
-
-
-    /*
-        This part is for doing the spectral transformation
-    */
-
-
     }else if(read_write == 1){
         int body;
         
@@ -199,9 +336,6 @@ int main(int argc, char **argv) {
         curvature.allocate_all();
 
         printf("%s\n", "[+] Quantities Successfully Allocated");
-
-
-
         // Assignes values from the read files
 
         for(int l=0;l<nz;l++){
@@ -248,8 +382,14 @@ int main(int argc, char **argv) {
 
 
 
-        
-        
+        // Makes the inverse metric from the metric (by making it contravariant)
+        /*This might be the wrong way of doing it...
+          Check if I don't mix up the metric and inverse metric... */
+
+        //Sym_tensor inv_gamma(map,COV,map.get_bvect_cart());
+        //inv_gamma.allocate_all();
+        //inv_gamma = Metric(gamma).con();
+
 
 
 
@@ -258,7 +398,7 @@ int main(int argc, char **argv) {
         beta.std_spectral_base();
         gamma.std_spectral_base();
         curvature.std_spectral_base();
-
+        //inv_gamma.std_spectral_base();
 
 
         printf("%s\n", "[+] Quantities Successfully Made to Spectral Bases");
@@ -266,39 +406,56 @@ int main(int argc, char **argv) {
         Sym_tensor cart_gamma(map,COV,map.get_bvect_cart());
         cart_gamma = gamma;
 
-        
+        double rmax=8;
+        //des_meridian(gamma(1,1), 5, rmax, "\gamma_1_1", 2) ;
 
         // Converts from cartesian to spherical
-        
+        //cout << map.get_bvect_spher() << endl;
         beta.change_triad(map.get_bvect_spher());
         gamma.change_triad(map.get_bvect_spher());
         curvature.change_triad(map.get_bvect_spher());
-        
+        //inv_gamma.change_triad(map.get_bvect_spher());
 
         printf("%s\n", "[+] Quantities Successfully Converted");
-        
+        /*
+        gamma.set(1,2) = 0;
+        gamma.set(1,3) = 0;
+        gamma.set(2,1) = 0;
+        gamma.set(3,1) = 0;
+        gamma.set(3,2) = 0;
+        gamma.set(2,3) = 0;
 
+        gamma.set(1,1) = cart_gamma(1,1);
+        gamma.set(2,2) = cart_gamma(2,2);
+        gamma.set(3,3) = cart_gamma(3,3);
+
+        gamma.set(2,2) = gamma(1,1);
+        gamma.set(3,3) = gamma(1,1);
+        */
+
+        des_meridian(gamma(1,1), 0.51, rmax, "g_{xx}", 3) ;
+        des_meridian(N, 0.5, rmax, "\\alpha", 4) ;
+        des_meridian(gamma(1,1) - pow((1+1/(2*map.r)),4), 0.52, rmax, "Simulated - Analytical g_{xx}", 5) ;
+        des_meridian(N - (1-1/(2*map.r))/(1+1/(2*map.r)), 0.52, rmax, "Simulated - Analytical \\alpha", 6) ;
         
         Metric metric(map.flat_met_spher());
         metric = gamma;
 
 
         // Plotting for testing
-        /*
-        double rmax=8;
-        des_meridian(gamma(1,1), 0.51, rmax, "g_{xx}", 3) ;
-        des_meridian(N, 0.5, rmax, "\\alpha", 4) ;
-        des_meridian(gamma(1,1) - pow((1+1/(2*map.r)),4), 0.52, rmax, "Simulated - Analytical g_{xx}", 5) ;
-        des_meridian(N - (1-1/(2*map.r))/(1+1/(2*map.r)), 0.52, rmax, "Simulated - Analytical \\alpha", 6) ;
+
+        //double rmax=8;
+        //des_meridian(gamma(1,1), 1, rmax, "Gamma", 1) ;
         
         des_coupe_z(gamma(1,1), 1, nz-1, "g_{xx}") ;
         des_coupe_z(N, 1, nz-1, "\\alpha") ;
 
         arrete() ;
-        */
+        
 
         // Saves to Gyoto Readable File
-        
+        /*Make correct file name... */
+
         char out_name[20];
         sprintf(out_name, "bbh_%d_body%d.d",it, body);
 
@@ -312,8 +469,12 @@ int main(int argc, char **argv) {
         N.sauve(file_out) ;
         beta.sauve(file_out) ;
         Metric(gamma).cov().sauve(file_out) ;
+        //metric.cov().sauve(file_out) ;
+        //metric.con().sauve(file_out) ;
+        //gamma.sauve(file_out) ;
+        //inv_gamma.sauve(file_out) ;
         Metric(gamma).con().sauve(file_out);
-        
+        //gamma.con().sauve(file_out);
         curvature.sauve(file_out) ;
 
         fclose(file_out) ;
@@ -348,6 +509,7 @@ double readdata(double *values, int l, int k, int j, int i, int nz, int *nr, int
 
     int index = 3 + outer_size + k*nt[l]*nr[l] + j*nr[l] + i;
 
+    //cout << index << endl;
     return *(values + index);
 }
 
@@ -356,6 +518,7 @@ double *get_flatten_values(int size, char* filename){
     const int max_size = 2048*128*64;
 
     FILE *myFile;
+    //myFile = fopen("flatten.txt", "r");
     myFile = fopen(filename, "r");
 
     if(size > max_size){
@@ -363,6 +526,20 @@ double *get_flatten_values(int size, char* filename){
         exit(1);
     }
 
+    /*
+    //read file into array
+    static double values[max_size];
+    int i;
+    if (myFile == NULL){
+        printf("Error Reading File\n");
+        exit (1);
+    }
+
+    for (i = 0; i < size; i++){
+        fscanf(myFile, "%lf,", &values[i] );
+    }
+
+    */
 
 
     double* values = static_cast<double *>(malloc(sizeof(double) * size));
@@ -377,6 +554,11 @@ double *get_flatten_values(int size, char* filename){
     }
 
     fclose(myFile);
+    /*
+    for (i = 0; i < size; i++){
+      printf("Number is: %f\n\n", values[i]);
+    }
+    */
 
     return values;
 
