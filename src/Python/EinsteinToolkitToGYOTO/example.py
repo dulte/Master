@@ -17,7 +17,7 @@ if __name__=="__main__":
     """
 
     #######################################################
-    ##  Example of reading and converting simulated data ##                                       
+    ##  Example of reading and plotting simulated data   ##                                       
     #######################################################
 
     #folder = "/mn/stornext/d13/euclid/daniehei/simulations/bbh_3D"
