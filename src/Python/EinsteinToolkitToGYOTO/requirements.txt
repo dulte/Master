@@ -5,7 +5,7 @@ h5py==2.10.0
 kiwisolver==1.1.0
 matplotlib==2.2.5
 mpi4py==3.0.3
-numpy==1.16.6
+numpy==1.22.0
 pandas==0.24.2
 PostCactus 
 pyparsing==2.4.7
